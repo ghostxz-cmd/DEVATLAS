@@ -1,0 +1,22 @@
+{
+  "name": "sursacod",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "npm run -w apps/web dev",
+    "dev:api": "npm run -w apps/api start:dev",
+    "dev:worker": "npm run -w apps/worker start:dev",
+    "build": "npm run -w apps/api build ; npm run -w apps/worker build ; npm run -w apps/web build",
+    "lint": "npm run -w apps/web lint"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ]
+}
