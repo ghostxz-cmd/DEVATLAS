@@ -1,8 +1,92 @@
 @import "tailwindcss";
 
 :root {
+  --background: #000000;
+  --foreground: #ffffff;
+}
+
+html.light {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #000000;
+}
+
+html.light body {
+  background: linear-gradient(to bottom right, #f9fafb, #ffffff);
+  color: #000000;
+}
+
+html.light section {
+  background: #ffffff !important;
+}
+
+html.light .bg-black {
+  background: #ffffff !important;
+}
+
+html.light .bg-gray-900 {
+  background: #f3f4f6 !important;
+}
+
+html.light .bg-gradient-to-b {
+  background: linear-gradient(to bottom, #ffffff, #f9fafb) !important;
+}
+
+html.light .bg-gradient-to-br {
+  background: linear-gradient(to bottom right, #f9fafb, #ffffff) !important;
+}
+
+html.light .text-white {
+  color: #000000 !important;
+}
+
+html.light .text-gray-200 {
+  color: #374151 !important;
+}
+
+html.light .text-gray-300 {
+  color: #4b5563 !important;
+}
+
+html.light .text-gray-400 {
+  color: #6b7280 !important;
+}
+
+html.light .border-white\/10,
+html.light .border-white\/5 {
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+html.light .bg-gray-900\/50 {
+  background: rgba(243, 244, 246, 0.7) !important;
+}
+
+html.light .bg-white\/5,
+html.light .bg-white\/10 {
+  background: rgba(0, 0, 0, 0.05) !important;
+}
+
+html.light nav {
+  background: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+html.light nav.bg-black\/60 {
+  background: rgba(255, 255, 255, 0.6) !important;
+}
+
+html.light .brightness-0.invert {
+  filter: brightness(1) invert(0) !important;
+}
+
+html.light .bg-white {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+html.light a.bg-white,
+html.light button.bg-white {
+  background: #000000 !important;
+  color: #ffffff !important;
 }
 
 @theme inline {
@@ -10,13 +94,6 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
