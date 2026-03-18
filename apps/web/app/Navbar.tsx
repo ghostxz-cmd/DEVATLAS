@@ -85,12 +85,12 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Cursurile Noastre */}
+            {/* Cursuri */}
             <Link
               href="/cursuri"
               className="px-6 py-3 text-gray-200 hover:text-white font-normal text-[15px] tracking-wide transition-all hover:bg-white/5 rounded-xl"
             >
-              Cursurile Noastre
+              Cursuri
             </Link>
 
             {/* Contact */}
@@ -189,7 +189,7 @@ export default function Navbar() {
                 className="text-gray-200 hover:text-white hover:bg-white/5 transition-all px-4 py-3 rounded-xl mt-2"
                 onClick={() => setIsMenuOpen(false)}
               >
-                Cursurile Noastre
+                Cursuri
               </Link>
               <Link
                 href="/contact"
