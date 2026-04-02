@@ -16,6 +16,28 @@ type SupabaseTicketResponse = {
   ticket_public_id: string;
 };
 
+type SupportCategory = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+};
+
+type SupportTicket = {
+  id: string;
+  public_id: string;
+  requester_email: string;
+  requester_name: string | null;
+  subject: string;
+  description: string;
+  status: "open" | "in_progress" | "waiting_user" | "resolved" | "closed";
+  priority: "low" | "normal" | "high" | "critical";
+  created_at: string;
+  last_message_at: string;
+  category_id: string | null;
+};
+
 function getRequiredEnv(name: string) {
   const value = process.env[name];
   if (!value) {
@@ -31,6 +53,76 @@ function escapeHtml(value: string) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+}
+
+function getSupabaseHeaders() {
+  const serviceRoleKey = getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+  return {
+    "Content-Type": "application/json",
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+  };
+}
+
+export async function GET(request: Request) {
+  try {
+    const supabaseUrl = getRequiredEnv("SUPABASE_URL");
+    const { searchParams } = new URL(request.url);
+
+    const search = searchParams.get("search")?.trim().toLowerCase() ?? "";
+    const status = searchParams.get("status")?.trim().toLowerCase() ?? "";
+    const priority = searchParams.get("priority")?.trim().toLowerCase() ?? "";
+    const category = searchParams.get("category")?.trim().toLowerCase() ?? "";
+
+    const [ticketsResponse, categoriesResponse] = await Promise.all([
+      fetch(`${supabaseUrl}/rest/v1/support_tickets?select=*&order=created_at.desc`, {
+        headers: getSupabaseHeaders(),
+      }),
+      fetch(`${supabaseUrl}/rest/v1/support_categories?select=*`, {
+        headers: getSupabaseHeaders(),
+      }),
+    ]);
+
+    if (!ticketsResponse.ok) {
+      return NextResponse.json({ message: await ticketsResponse.text() }, { status: 502 });
+    }
+
+    if (!categoriesResponse.ok) {
+      return NextResponse.json({ message: await categoriesResponse.text() }, { status: 502 });
+    }
+
+    const tickets = (await ticketsResponse.json()) as SupportTicket[];
+    const categories = (await categoriesResponse.json()) as SupportCategory[];
+    const categoryMap = new Map(categories.map((item) => [item.id, item]));
+
+    const items = tickets
+      .map((ticket) => ({
+        ...ticket,
+        category: ticket.category_id ? categoryMap.get(ticket.category_id) ?? null : null,
+      }))
+      .filter((ticket) => {
+        const matchesSearch =
+          !search ||
+          [ticket.public_id, ticket.subject, ticket.requester_email, ticket.requester_name]
+            .filter(Boolean)
+            .some((value) => String(value).toLowerCase().includes(search));
+        const matchesStatus = !status || ticket.status === status;
+        const matchesPriority = !priority || ticket.priority === priority;
+        const matchesCategory =
+          !category ||
+          ticket.category?.slug === category ||
+          ticket.category?.name?.toLowerCase().includes(category);
+
+        return matchesSearch && matchesStatus && matchesPriority && matchesCategory;
+      });
+
+    return NextResponse.json({ items, total: items.length });
+  } catch (error) {
+    return NextResponse.json(
+      { message: error instanceof Error ? error.message : "Failed to load support tickets." },
+      { status: 500 },
+    );
+  }
 }
 
 async function sendConfirmationEmail(input: {

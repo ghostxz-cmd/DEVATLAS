@@ -83,31 +83,37 @@ function getSupabaseHeaders() {
 async function getTicketByParam(ticketId: string): Promise<SupportTicketDetail | null> {
   const supabaseUrl = getRequiredEnv("SUPABASE_URL");
 
-  const ticketByIdResponse = await fetch(
-    `${supabaseUrl}/rest/v1/support_tickets?select=*&id=eq.${encodeURIComponent(ticketId)}&limit=1`,
+  const ticketByPublicIdResponse = await fetch(
+    `${supabaseUrl}/rest/v1/support_tickets?select=*&public_id=eq.${encodeURIComponent(ticketId)}&limit=1`,
     {
       headers: getSupabaseHeaders(),
     },
   );
 
-  if (!ticketByIdResponse.ok) {
-    throw new Error(await ticketByIdResponse.text());
+  if (!ticketByPublicIdResponse.ok) {
+    throw new Error(await ticketByPublicIdResponse.text());
   }
 
-  let tickets = (await ticketByIdResponse.json()) as SupportTicketDetail[];
+  let tickets = (await ticketByPublicIdResponse.json()) as SupportTicketDetail[];
   if (tickets.length === 0) {
-    const ticketByPublicIdResponse = await fetch(
-      `${supabaseUrl}/rest/v1/support_tickets?select=*&public_id=eq.${encodeURIComponent(ticketId)}&limit=1`,
-      {
-        headers: getSupabaseHeaders(),
-      },
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      ticketId,
     );
 
-    if (!ticketByPublicIdResponse.ok) {
-      throw new Error(await ticketByPublicIdResponse.text());
-    }
+    if (isUuid) {
+      const ticketByIdResponse = await fetch(
+        `${supabaseUrl}/rest/v1/support_tickets?select=*&id=eq.${encodeURIComponent(ticketId)}&limit=1`,
+        {
+          headers: getSupabaseHeaders(),
+        },
+      );
 
-    tickets = (await ticketByPublicIdResponse.json()) as SupportTicketDetail[];
+      if (!ticketByIdResponse.ok) {
+        throw new Error(await ticketByIdResponse.text());
+      }
+
+      tickets = (await ticketByIdResponse.json()) as SupportTicketDetail[];
+    }
   }
 
   const ticket = tickets[0];
@@ -115,19 +121,32 @@ async function getTicketByParam(ticketId: string): Promise<SupportTicketDetail |
     return null;
   }
 
+  const categoryPromise = ticket.category_id
+    ? fetch(
+        `${supabaseUrl}/rest/v1/support_categories?select=*&id=eq.${encodeURIComponent(ticket.category_id)}&limit=1`,
+        {
+          headers: getSupabaseHeaders(),
+        },
+      )
+    : Promise.resolve(null);
+
   const [categoryResponse, messagesResponse, eventsResponse] = await Promise.all([
-    fetch(`${supabaseUrl}/rest/v1/support_categories?select=*&id=eq.${encodeURIComponent(ticket.category_id ?? "")}&limit=1`, {
-      headers: getSupabaseHeaders(),
-    }),
-    fetch(`${supabaseUrl}/rest/v1/support_messages?select=*&ticket_id=eq.${encodeURIComponent(ticket.id)}&order=created_at.asc`, {
-      headers: getSupabaseHeaders(),
-    }),
-    fetch(`${supabaseUrl}/rest/v1/support_ticket_events?select=*&ticket_id=eq.${encodeURIComponent(ticket.id)}&order=created_at.asc`, {
-      headers: getSupabaseHeaders(),
-    }),
+    categoryPromise,
+    fetch(
+      `${supabaseUrl}/rest/v1/support_messages?select=*&ticket_id=eq.${encodeURIComponent(ticket.id)}&order=created_at.asc`,
+      {
+        headers: getSupabaseHeaders(),
+      },
+    ),
+    fetch(
+      `${supabaseUrl}/rest/v1/support_ticket_events?select=*&ticket_id=eq.${encodeURIComponent(ticket.id)}&order=created_at.asc`,
+      {
+        headers: getSupabaseHeaders(),
+      },
+    ),
   ]);
 
-  if (!categoryResponse.ok) {
+  if (categoryResponse && !categoryResponse.ok) {
     throw new Error(await categoryResponse.text());
   }
   if (!messagesResponse.ok) {
@@ -137,7 +156,9 @@ async function getTicketByParam(ticketId: string): Promise<SupportTicketDetail |
     throw new Error(await eventsResponse.text());
   }
 
-  const category = ((await categoryResponse.json()) as SupportCategory[])[0] ?? null;
+  const category = categoryResponse
+    ? ((await categoryResponse.json()) as SupportCategory[])[0] ?? null
+    : null;
   const messages = (await messagesResponse.json()) as SupportMessage[];
   const events = (await eventsResponse.json()) as SupportEvent[];
 
