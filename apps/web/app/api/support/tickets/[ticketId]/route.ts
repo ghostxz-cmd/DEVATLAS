@@ -1,9 +1,20 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import {
+  generateTicketClaimedEmail,
+  generateTicketClosedEmail,
+  generateReplyNotificationEmail,
+} from "@/lib/email-templates";
 
 const updateSupportTicketSchema = z.object({
   status: z.enum(["open", "in_progress", "waiting_user", "resolved", "closed"]).optional(),
   priority: z.enum(["low", "normal", "high", "critical"]).optional(),
+  adminName: z.string().optional(),
+});
+
+const claimTicketSchema = z.object({
+  adminId: z.string().uuid(),
+  adminName: z.string().optional(),
 });
 
 type SupportCategory = {
@@ -78,6 +89,43 @@ function getSupabaseHeaders() {
     apikey: serviceRoleKey,
     Authorization: `Bearer ${serviceRoleKey}`,
   };
+}
+
+async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const apiKey = getRequiredEnv("RESEND_API_KEY");
+    const from = process.env.EMAIL_FROM ?? "support@devatlas.website";
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        to: [to],
+        subject,
+        html,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      return { success: false, error };
+    }
+
+    return { success: true };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to send email",
+    };
+  }
 }
 
 async function getTicketByParam(ticketId: string): Promise<SupportTicketDetail | null> {
@@ -223,6 +271,49 @@ export async function PATCH(
       if (!response.ok) {
         return NextResponse.json({ message: await response.text() }, { status: 502 });
       }
+
+      // Send automated emails based on status change
+      if (body.status === "in_progress" && ticket.status !== "in_progress") {
+        // Ticket claimed
+        const ticketUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "https://devatlas.website"}/support/tickets/${ticket.public_id}`;
+        const emailHtml = generateTicketClaimedEmail({
+          ticketId: ticket.public_id,
+          customerName: ticket.requester_name || ticket.requester_email,
+          customerEmail: ticket.requester_email,
+          subject: ticket.subject,
+          status: body.status,
+          priority: ticket.priority,
+          adminName: body.adminName || "DevAtlas Support",
+          viewTicketUrl: ticketUrl,
+        });
+
+        await sendEmail(
+          ticket.requester_email,
+          `[DAT-${ticket.public_id}] Ticket-ul tău a fost preluat`,
+          emailHtml,
+        );
+      }
+
+      if (body.status === "closed" && ticket.status !== "closed") {
+        // Ticket closed
+        const ticketUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "https://devatlas.website"}/support/tickets/${ticket.public_id}`;
+        const emailHtml = generateTicketClosedEmail({
+          ticketId: ticket.public_id,
+          customerName: ticket.requester_name || ticket.requester_email,
+          customerEmail: ticket.requester_email,
+          subject: ticket.subject,
+          status: body.status,
+          priority: ticket.priority,
+          adminName: body.adminName || "DevAtlas Support",
+          viewTicketUrl: ticketUrl,
+        });
+
+        await sendEmail(
+          ticket.requester_email,
+          `[DAT-${ticket.public_id}] Ticket-ul tău a fost rezolvat`,
+          emailHtml,
+        );
+      }
     }
 
     return NextResponse.json({ ok: true });
@@ -301,39 +392,25 @@ export async function POST(
       return NextResponse.json({ message: await ticketUpdateResponse.text() }, { status: 502 });
     }
 
-    const apiKey = getRequiredEnv("RESEND_API_KEY");
-    const from = process.env.EMAIL_FROM ?? senderEmail;
-    const replyTo = process.env.EMAIL_REPLY_TO ?? from;
-
-    const emailResponse = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: [ticket.requester_email],
-        subject: `Răspuns la ticketul ${ticket.public_id}`,
-        reply_to: replyTo,
-        html: `
-          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
-            <h2 style="margin: 0 0 16px;">Ai primit un răspuns</h2>
-            <p>Salut${ticket.requester_name ? `, ${ticket.requester_name}` : ""},</p>
-            <p>Adminul a răspuns la ticketul <strong>${ticket.public_id}</strong>.</p>
-            <p><strong>Subiect:</strong> ${ticket.subject}</p>
-            <div style="margin: 24px 0; padding: 16px; border-left: 4px solid #0ea5e9; background: #f8fafc; white-space: pre-wrap;">
-              ${body.message}
-            </div>
-            <p>Poți răspunde direct din dashboard dacă mai ai nevoie de ajutor.</p>
-          </div>
-        `,
-      }),
+    // Send professional notification email
+    const ticketUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "https://devatlas.website"}/support/tickets/${ticket.public_id}`;
+    const emailHtml = generateReplyNotificationEmail({
+      ticketId: ticket.public_id,
+      customerName: ticket.requester_name || ticket.requester_email,
+      customerEmail: ticket.requester_email,
+      subject: ticket.subject,
+      status: updatePayload.status,
+      priority: ticket.priority,
+      message: body.message,
+      adminName: body.responderName || "DevAtlas Support",
+      viewTicketUrl: ticketUrl,
     });
 
-    if (!emailResponse.ok) {
-      return NextResponse.json({ message: await emailResponse.text() }, { status: 502 });
-    }
+    await sendEmail(
+      ticket.requester_email,
+      `Răspuns la ticketul ${ticket.public_id}`,
+      emailHtml,
+    );
 
     return NextResponse.json({ ok: true });
   } catch (error) {

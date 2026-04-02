@@ -284,7 +284,7 @@ export default function AdminSupportPage() {
 
   const updateTicketMeta = async (
     ticketPublicId: string,
-    patch: Partial<Pick<SupportTicketDetail, "status" | "priority">>,
+    patch: Partial<Pick<SupportTicketDetail, "status" | "priority">> & { adminName?: string },
   ) => {
     try {
       const response = await fetch(`/api/support/tickets/${ticketPublicId}`, {
@@ -307,7 +307,8 @@ export default function AdminSupportPage() {
 
         return {
           ...previous,
-          ...patch,
+          ...(patch.status && { status: patch.status }),
+          ...(patch.priority && { priority: patch.priority }),
         };
       });
     } catch (patchError) {
@@ -467,6 +468,20 @@ export default function AdminSupportPage() {
               </div>
 
               <div className="border-t border-[#e0e2e7] p-4">
+                {selectedTicket.status === "open" && (
+                  <button
+                    onClick={() => {
+                      void updateTicketMeta(selectedTicket.public_id, {
+                        status: "in_progress",
+                        adminName: "DevAtlas Support",
+                      });
+                    }}
+                    className="mb-3 w-full rounded-lg bg-[#4f46e5] px-4 py-2 text-sm font-semibold text-white hover:bg-[#4338ca] transition"
+                  >
+                    📋 Preia Ticket
+                  </button>
+                )}
+
                 <div className="mb-3 grid grid-cols-2 gap-2">
                   <select
                     value={selectedTicket.status}
