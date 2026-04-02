@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useSyncExternalStore,
+  ReactNode,
+} from "react";
 
 type Theme = "dark" | "light";
 
@@ -11,33 +17,47 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("dark");
-  const [mounted, setMounted] = useState(false);
+const THEME_STORAGE_KEY = "theme";
+
+function getStoredTheme(): Theme {
+  if (typeof window === "undefined") {
+    return "dark";
+  }
+
+  const storedTheme = localStorage.getItem(THEME_STORAGE_KEY) as Theme | null;
+  return storedTheme === "light" ? "light" : "dark";
+}
+
+function subscribeThemeChange(callback: () => void) {
+  const handler = () => callback();
+
+  window.addEventListener("storage", handler);
+  window.addEventListener("themechange", handler as EventListener);
+
+  return () => {
+    window.removeEventListener("storage", handler);
+    window.removeEventListener("themechange", handler as EventListener);
+  };
+}
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  const theme = useSyncExternalStore<Theme>(
+    subscribeThemeChange,
+    getStoredTheme,
+    () => "dark",
+  );
 
   useEffect(() => {
-    setMounted(true);
-    const savedTheme = localStorage.getItem("theme") as Theme;
-    if (savedTheme) {
-      setTheme(savedTheme);
-      document.documentElement.classList.toggle("light", savedTheme === "light");
-    }
-  }, []);
+    document.documentElement.classList.toggle("light", theme === "light");
+  }, [theme]);
 
   const toggleTheme = () => {
     const newTheme = theme === "dark" ? "light" : "dark";
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    document.documentElement.classList.toggle("light", newTheme === "light");
+    localStorage.setItem(THEME_STORAGE_KEY, newTheme);
+    window.dispatchEvent(new Event("themechange"));
   };
 
-  if (!mounted) return <>{children}</>;
-
-  return (
-    <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
-    </ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={{ theme, toggleTheme }}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {

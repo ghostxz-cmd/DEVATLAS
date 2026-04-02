@@ -3,13 +3,11 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useTheme } from "./ThemeProvider";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -29,25 +27,26 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-6 lg:px-8">
         <div className="flex items-center justify-between h-24">
           {/* Logo */}
-          <Link href="/" className="flex items-center group">
+          <Link href="/" className="flex items-center group flex-shrink-0">
             <Image
               src="/logos/negru.fara.bg.png"
               alt="DevAtlas Logo"
-              width={160}
-              height={45}
-              className="brightness-0 invert transition-all group-hover:scale-105"
+              width={120}
+              height={34}
+              className="w-[120px] sm:w-[140px] md:w-[160px] h-auto brightness-0 invert transition-all group-hover:scale-105"
+              priority
             />
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-2">
+          <div className="hidden md:flex items-center space-x-1 lg:space-x-2">
             {/* De ce DevAtlas - Dropdown */}
             <div 
               className="relative group"
             >
               <button 
                 onMouseEnter={() => setIsDropdownOpen(true)}
-                className="px-6 py-3 text-gray-200 hover:text-white font-normal text-[15px] tracking-wide transition-all hover:bg-white/5 rounded-xl flex items-center space-x-2"
+                className="px-4 md:px-6 py-2 md:py-3 text-gray-200 hover:text-white font-normal text-sm md:text-[15px] tracking-wide transition-all hover:bg-white/5 rounded-xl flex items-center space-x-2 min-h-[44px]"
               >
                 <span>De ce DevAtlas</span>
                 <svg 
@@ -88,7 +87,7 @@ export default function Navbar() {
             {/* Cursuri */}
             <Link
               href="/cursuri"
-              className="px-6 py-3 text-gray-200 hover:text-white font-normal text-[15px] tracking-wide transition-all hover:bg-white/5 rounded-xl"
+              className="px-4 md:px-6 py-2 md:py-3 text-gray-200 hover:text-white font-normal text-sm md:text-[15px] tracking-wide transition-all hover:bg-white/5 rounded-xl min-h-[44px] flex items-center"
             >
               Cursuri
             </Link>
@@ -96,31 +95,14 @@ export default function Navbar() {
             {/* Contact */}
             <Link
               href="/contact"
-              className="px-6 py-3 text-gray-200 hover:text-white font-normal text-[15px] tracking-wide transition-all hover:bg-white/5 rounded-xl"
+              className="px-4 md:px-6 py-2 md:py-3 text-gray-200 hover:text-white font-normal text-sm md:text-[15px] tracking-wide transition-all hover:bg-white/5 rounded-xl min-h-[44px] flex items-center"
             >
               Contact
             </Link>
           </div>
 
           {/* Sign In Button (Desktop) */}
-          <div className="hidden md:flex items-center gap-3">
-            {/* Theme Toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-3 rounded-xl hover:bg-white/5 transition-all"
-              aria-label="Toggle theme"
-            >
-              {theme === "dark" ? (
-                <svg className="w-5 h-5 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                </svg>
-              ) : (
-                <svg className="w-5 h-5 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                </svg>
-              )}
-            </button>
-            
+          <div className="hidden md:block">
             <Link
               href="/auth/signin"
               className="px-8 py-3 bg-white text-black font-medium text-[15px] rounded-xl transition-all transform hover:scale-[1.02] hover:bg-gray-100"
@@ -132,11 +114,11 @@ export default function Navbar() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="md:hidden p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 transition-all"
+            className="md:hidden p-2 rounded-lg text-gray-300 hover:text-white hover:bg-white/5 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
             aria-label="Toggle menu"
           >
             <svg
-              className="w-6 h-6"
+              className="w-5 h-5 sm:w-6 sm:h-6"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -162,22 +144,22 @@ export default function Navbar() {
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden py-6 border-t border-white/10">
+          <div className="md:hidden py-4 sm:py-6 border-t border-white/10">
             <div className="flex flex-col space-y-1">
               {/* De ce DevAtlas - Mobile */}
-              <div className="px-4 py-2 text-gray-500 text-xs font-medium uppercase tracking-wider">
+              <div className="px-3 sm:px-4 py-2 text-gray-500 text-xs font-medium uppercase tracking-wider">
                 De ce DevAtlas
               </div>
               <Link
                 href="/despre/povestea-noastra"
-                className="text-gray-200 hover:text-white hover:bg-white/5 transition-all px-6 py-3 rounded-xl"
+                className="text-gray-200 hover:text-white hover:bg-white/5 transition-all px-4 sm:px-6 py-3 sm:py-4 rounded-xl min-h-[48px] flex items-center"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Povestea Noastră
               </Link>
               <Link
                 href="/despre/echipa-noastra"
-                className="text-gray-200 hover:text-white hover:bg-white/5 transition-all px-6 py-3 rounded-xl"
+                className="text-gray-200 hover:text-white hover:bg-white/5 transition-all px-4 sm:px-6 py-3 sm:py-4 rounded-xl min-h-[48px] flex items-center"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Echipa Noastră
@@ -186,26 +168,40 @@ export default function Navbar() {
               {/* Other Links */}
               <Link
                 href="/cursuri"
-                className="text-gray-200 hover:text-white hover:bg-white/5 transition-all px-4 py-3 rounded-xl mt-2"
+                className="text-gray-200 hover:text-white hover:bg-white/5 transition-all px-3 sm:px-4 py-3 sm:py-4 rounded-xl mt-2 min-h-[48px] flex items-center"
                 onClick={() => setIsMenuOpen(false)}
               >
                 Cursuri
               </Link>
-              <Link
-                href="/contact"
-                className="text-gray-200 hover:text-white hover:bg-white/5 transition-all px-4 py-3 rounded-xl"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Contact
-              </Link>
               
-              <Link
-                href="/auth/signin"
-                className="mx-4 mt-4 px-8 py-3 bg-white text-black font-medium rounded-xl transition-all text-center"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Intră în cont
-              </Link>
+              <div className="flex items-center gap-2 mt-4 sm:mt-6">
+                <button
+                  onClick={() => {
+                    toggleTheme();
+                    setIsMenuOpen(false);
+                  }}
+                  className="p-2 rounded-xl hover:bg-white/5 transition-all min-h-[44px] min-w-[44px] flex items-center justify-center"
+                  aria-label="Toggle theme"
+                >
+                  {theme === "dark" ? (
+                    <svg className="w-4 h-4 text-gray-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-gray-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                  )}
+                </button>
+                
+                <Link
+                  href="/auth/signin"
+                  className="flex-1 px-4 sm:px-8 py-3 bg-white text-black font-medium text-sm rounded-xl transition-all text-center min-h-[44px] flex items-center justify-center"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Intră în cont
+                </Link>
+              </div>
             </div>
           </div>
         )}

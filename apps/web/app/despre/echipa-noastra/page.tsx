@@ -69,7 +69,7 @@ export default function EchipaNoastra() {
                 </p>
                 <p>
                   M-am săturat de resurse slabe în română și de platforme care nu-mi dădeau feedback 
-                  real pe cod. Așa că am zis: "Dacă nu există, o fac eu."
+                  real pe cod. Așa că am zis: &quot;Dacă nu există, o fac eu.&quot;
                 </p>
                 <p>
                   DevAtlas e rezultatul a sute de ore de muncă - design, frontend, backend, bază de date, 
@@ -92,7 +92,7 @@ export default function EchipaNoastra() {
               {/* Quote */}
               <div className="border-l-4 border-cyan-500 pl-6">
                 <p className="text-2xl font-bold text-white italic">
-                  "Nu contează cât de mare devine. Contează să rămână onest."
+                  &quot;Nu contează cât de mare devine. Contează să rămână onest.&quot;
                 </p>
               </div>
             </div>
@@ -132,7 +132,7 @@ export default function EchipaNoastra() {
               <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
                 <h3 className="text-2xl font-bold text-white mb-4">Zero compromisuri</h3>
                 <p className="text-gray-400 text-lg leading-relaxed">
-                  Nu trebuie să fac platformă "marketable" sau să scot feature-uri ca să lansez mai repede. 
+                  Nu trebuie să fac platformă &quot;marketable&quot; sau să scot feature-uri ca să lansez mai repede. 
                   Iese când e gata.
                 </p>
               </div>

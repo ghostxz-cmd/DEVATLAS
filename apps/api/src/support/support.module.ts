@@ -1,0 +1,12 @@
+import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { SupportController } from './support.controller';
+import { SupportEmailService } from './support-email.service';
+import { SupportService } from './support.service';
+
+@Module({
+  imports: [ConfigModule],
+  controllers: [SupportController],
+  providers: [SupportService, SupportEmailService],
+})
+export class SupportModule {}

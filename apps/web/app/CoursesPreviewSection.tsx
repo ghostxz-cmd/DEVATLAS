@@ -1,4 +1,4 @@
-"use client";
+  "use client";
 
 import Link from "next/link";
 
@@ -64,7 +64,7 @@ export default function CoursesPreviewSection() {
               <div className="text-2xl mb-3">🐍</div>
               <h3 className="text-xl font-bold text-white mb-2">Python Fundamentals</h3>
               <p className="text-gray-400 text-sm mb-4">
-                De la "Hello World" la aplicații CLI complexe.
+                De la &quot;Hello World&quot; la aplicații CLI complexe.
               </p>
               <div className="text-sm text-gray-500">24 lecții • 6 săptămâni</div>
             </div>

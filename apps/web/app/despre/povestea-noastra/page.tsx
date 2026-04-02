@@ -56,7 +56,7 @@ export default function PovesteaNoastra() {
                   să-l testezi singur. Fără feedback, fără să știi dacă e corect sau nu.
                 </p>
                 <p>
-                  Am zis: "Fuck it, fac eu una."
+                  Am zis: &quot;Fuck it, fac eu una.&quot;
                 </p>
               </div>
             </div>
@@ -93,7 +93,7 @@ export default function PovesteaNoastra() {
                 <h3 className="text-2xl font-bold text-white mb-4">Editor integrat</h3>
                 <p className="text-gray-400 text-lg leading-relaxed">
                   Scrii cod direct în browser. Fără să instalezi Node, Python, VS Code - nimic. 
-                  Click pe "Run" și vezi rezultatul instant.
+                  Click pe &quot;Run&quot; și vezi rezultatul instant.
                 </p>
               </div>
 
@@ -108,7 +108,7 @@ export default function PovesteaNoastra() {
               <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
                 <h3 className="text-2xl font-bold text-white mb-4">Proiecte reale</h3>
                 <p className="text-gray-400 text-lg leading-relaxed">
-                  Nu exerciții abstracte de tipul "calculează factorial". Construiești chestii 
+                  Nu exerciții abstracte de tipul &quot;calculează factorial&quot;. Construiești chestii 
                   pe care le poți pune în portofoliu.
                 </p>
               </div>
@@ -119,8 +119,8 @@ export default function PovesteaNoastra() {
           <div className="max-w-4xl mx-auto mb-32">
             <div className="bg-gray-900/50 border-l-4 border-cyan-500 rounded-r-3xl p-12">
               <blockquote className="text-3xl font-bold text-white leading-relaxed mb-6">
-                "Nu vreau să fac cea mai mare platformă de e-learning. 
-                Vreau să fac una pe care mi-aș fi dorit-o când am început eu."
+                &quot;Nu vreau să fac cea mai mare platformă de e-learning. 
+                Vreau să fac una pe care mi-aș fi dorit-o când am început eu.&quot;
               </blockquote>
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-cyan-500 rounded-full flex items-center justify-center">
