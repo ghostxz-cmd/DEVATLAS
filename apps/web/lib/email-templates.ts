@@ -1,6 +1,6 @@
 /**
- * Email template generators for DevAtlas support system
- * All templates return HTML string ready to send via Resend/Email service
+ * Email template generators for DevAtlas support system.
+ * Styled to match the website hero: dark surfaces, cyan/blue accents, bold CTA.
  */
 
 type EmailTemplateContext = {
@@ -15,398 +15,437 @@ type EmailTemplateContext = {
   viewTicketUrl?: string;
 };
 
-const LOGO_URL = "https://devatlas.website/logos/devatlas-logo.png";
-const BRAND_COLOR = "#4f46e5";
-const BRAND_COLOR_DARK = "#3730a3";
+const LOGO_URL = "https://devatlas.website/logos/negru.fara.bg.png";
+const WEBSITE_URL = "https://devatlas.website";
 
-function generateBase(title: string, content: string): string {
+const COLOR = {
+  bg: "#050816",
+  panel: "#0b1024",
+  card: "#0f172f",
+  border: "#1f2a4d",
+  text: "#e6edf5",
+  muted: "#a9b6d1",
+  white: "#ffffff",
+  blue: "#1d4ed8",
+  cyan: "#22d3ee",
+  cyanDark: "#06b6d4",
+};
+
+function prettyStatus(status: string): string {
+  return status.replace(/_/g, " ");
+}
+
+function getStatusStyle(status: string): string {
+  switch (status) {
+    case "open":
+      return "background:#1e293b;color:#93c5fd;border:1px solid #334155;";
+    case "in_progress":
+      return "background:#0f2b53;color:#7dd3fc;border:1px solid #1d4ed8;";
+    case "waiting_user":
+      return "background:#3f1a1a;color:#fca5a5;border:1px solid #7f1d1d;";
+    case "resolved":
+      return "background:#0b3b2c;color:#86efac;border:1px solid #166534;";
+    case "closed":
+      return "background:#1f2937;color:#d1d5db;border:1px solid #374151;";
+    default:
+      return "background:#1e293b;color:#cbd5e1;border:1px solid #334155;";
+  }
+}
+
+function getPriorityStyle(priority: string): string {
+  switch (priority) {
+    case "low":
+      return "background:#0b3b2c;color:#86efac;border:1px solid #166534;";
+    case "normal":
+      return "background:#0f2b53;color:#7dd3fc;border:1px solid #1d4ed8;";
+    case "high":
+      return "background:#3a2d0d;color:#fde68a;border:1px solid #854d0e;";
+    case "critical":
+      return "background:#3f1a1a;color:#fca5a5;border:1px solid #7f1d1d;";
+    default:
+      return "background:#1e293b;color:#cbd5e1;border:1px solid #334155;";
+  }
+}
+
+function buildHeader(title: string): string {
+  return `
+    <div class="hero-wrap">
+      <div class="hero-cyan"></div>
+      <div class="hero-blue"></div>
+      <div class="hero-content">
+        <img src="${LOGO_URL}" alt="DevAtlas" class="logo" />
+        <p class="eyebrow">DEVATLAS SUPPORT</p>
+        <h1>${title}</h1>
+      </div>
+    </div>
+  `;
+}
+
+function buildTicketInfo(context: EmailTemplateContext): string {
+  const { ticketId, subject, status, priority, adminName } = context;
+
+  return `
+    <div class="info-card">
+      <div class="info-row"><span class="label">Ticket ID</span><span class="value"><strong>${ticketId}</strong></span></div>
+      <div class="info-row"><span class="label">Subiect</span><span class="value">${subject}</span></div>
+      <div class="info-row"><span class="label">Status</span><span class="value"><span class="chip" style="${getStatusStyle(status)}">${prettyStatus(status)}</span></span></div>
+      <div class="info-row"><span class="label">Prioritate</span><span class="value"><span class="chip" style="${getPriorityStyle(priority)}">${priority}</span></span></div>
+      ${adminName ? `<div class="info-row"><span class="label">Agent</span><span class="value">${adminName}</span></div>` : ""}
+    </div>
+  `;
+}
+
+function generateBase(title: string, bodyContent: string): string {
   return `
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ro">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${title}</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-      background-color: #f5f5f5;
+      margin: 0;
+      padding: 24px 12px;
+      background: ${COLOR.bg};
+      color: ${COLOR.text};
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
       line-height: 1.6;
-      color: #333;
     }
     .container {
-      max-width: 600px;
+      max-width: 640px;
       margin: 0 auto;
-      background-color: #ffffff;
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
+      border: 1px solid ${COLOR.border};
+      border-radius: 20px;
       overflow: hidden;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      background: linear-gradient(180deg, ${COLOR.panel} 0%, ${COLOR.bg} 100%);
+      box-shadow: 0 14px 50px rgba(0, 0, 0, 0.4);
     }
-    .header {
-      background: linear-gradient(135deg, ${BRAND_COLOR} 0%, ${BRAND_COLOR_DARK} 100%);
-      padding: 30px 20px;
-      text-align: center;
-      color: white;
+    .hero-wrap {
+      position: relative;
+      overflow: hidden;
+      border-bottom: 1px solid ${COLOR.border};
+      background: #05070f;
+      padding: 24px;
     }
-    .header img {
-      height: 40px;
-      margin-bottom: 10px;
+    .hero-cyan {
+      position: absolute;
+      right: -100px;
+      top: -70px;
+      width: 300px;
+      height: 180px;
+      background: linear-gradient(135deg, ${COLOR.cyan} 0%, ${COLOR.cyanDark} 100%);
+      opacity: 0.25;
+      border-radius: 20px;
+      transform: rotate(-10deg);
     }
-    .header h1 {
-      font-size: 24px;
-      font-weight: 600;
-      margin: 10px 0 0 0;
+    .hero-blue {
+      position: absolute;
+      right: 40px;
+      bottom: -80px;
+      width: 220px;
+      height: 150px;
+      background: ${COLOR.blue};
+      opacity: 0.2;
+      border-radius: 20px;
+      transform: rotate(-10deg);
+    }
+    .hero-content {
+      position: relative;
+      z-index: 2;
+    }
+    .logo {
+      max-width: 190px;
+      height: auto;
+      margin-bottom: 12px;
+      display: block;
+    }
+    .eyebrow {
+      margin: 0 0 6px 0;
+      font-size: 11px;
+      letter-spacing: 0.16em;
+      font-weight: 700;
+      color: ${COLOR.cyan};
+    }
+    h1 {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.15;
+      color: ${COLOR.white};
     }
     .body {
-      padding: 30px 20px;
+      padding: 24px;
     }
-    .section {
-      margin-bottom: 25px;
+    p {
+      margin: 0 0 14px 0;
+      color: ${COLOR.text};
+      font-size: 15px;
     }
-    .section h2 {
-      font-size: 16px;
-      color: ${BRAND_COLOR};
-      margin-bottom: 10px;
-      font-weight: 600;
+    .section-title {
+      margin: 20px 0 10px 0;
+      color: ${COLOR.cyan};
+      font-size: 15px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
-    .info-box {
-      background-color: #f8f8f8;
-      border-left: 4px solid ${BRAND_COLOR};
-      padding: 15px;
-      margin: 15px 0;
-      border-radius: 4px;
+    .info-card {
+      background: ${COLOR.card};
+      border: 1px solid ${COLOR.border};
+      border-radius: 14px;
+      padding: 14px;
+      margin: 18px 0;
     }
     .info-row {
       display: flex;
       justify-content: space-between;
+      gap: 14px;
       margin: 8px 0;
       font-size: 14px;
+      align-items: center;
     }
-    .info-label {
+    .label {
+      color: ${COLOR.muted};
       font-weight: 600;
-      color: #666;
+      min-width: 90px;
     }
-    .info-value {
-      color: #333;
+    .value {
+      color: ${COLOR.white};
+      text-align: right;
     }
-    .badge {
+    .chip {
       display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-      margin-right: 8px;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
-    .badge-status-open {
-      background-color: #fef3c7;
-      color: #92400e;
+    .message-content {
+      background: #0b142b;
+      border: 1px solid ${COLOR.border};
+      border-radius: 12px;
+      padding: 14px;
+      color: ${COLOR.text};
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
     }
-    .badge-status-in_progress {
-      background-color: #dbeafe;
-      color: #0c4a6e;
-    }
-    .badge-status-waiting_user {
-      background-color: #fee2e2;
-      color: #7f1d1d;
-    }
-    .badge-status-resolved {
-      background-color: #d1fae5;
-      color: #065f46;
-    }
-    .badge-status-closed {
-      background-color: #e5e7eb;
-      color: #374151;
-    }
-    .badge-priority-low {
-      background-color: #d1fae5;
-      color: #065f46;
-    }
-    .badge-priority-normal {
-      background-color: #dbeafe;
-      color: #0c4a6e;
-    }
-    .badge-priority-high {
-      background-color: #fef3c7;
-      color: #92400e;
-    }
-    .badge-priority-critical {
-      background-color: #fee2e2;
-      color: #7f1d1d;
+    .cta-wrap {
+      text-align: center;
+      margin: 24px 0 10px 0;
     }
     .cta-button {
       display: inline-block;
-      background-color: ${BRAND_COLOR};
-      color: white;
-      padding: 12px 30px;
-      border-radius: 6px;
       text-decoration: none;
-      font-weight: 600;
-      margin: 15px 0;
-      transition: background-color 0.3s;
-    }
-    .cta-button:hover {
-      background-color: ${BRAND_COLOR_DARK};
-    }
-    .message-content {
-      background-color: #fafafa;
-      padding: 15px;
-      border-radius: 6px;
-      border: 1px solid #e0e0e0;
+      background: linear-gradient(90deg, ${COLOR.blue} 0%, ${COLOR.cyan} 100%);
+      color: #001020;
+      font-weight: 800;
+      border-radius: 999px;
+      padding: 12px 24px;
       font-size: 14px;
-      line-height: 1.6;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      color: #333;
+      letter-spacing: 0.02em;
     }
     .footer {
-      background-color: #f8f8f8;
-      padding: 20px;
+      padding: 18px 24px 24px;
+      border-top: 1px solid ${COLOR.border};
+      background: #05070f;
       text-align: center;
-      font-size: 12px;
-      color: #999;
-      border-top: 1px solid #e0e0e0;
     }
     .footer p {
-      margin: 5px 0;
+      margin: 4px 0;
+      font-size: 12px;
+      color: ${COLOR.muted};
+    }
+    .footer strong {
+      color: ${COLOR.white};
+    }
+    @media (max-width: 640px) {
+      .body,
+      .hero-wrap,
+      .footer {
+        padding: 18px;
+      }
+      h1 {
+        font-size: 24px;
+      }
+      .info-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .value {
+        text-align: left;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    ${content}
+    ${bodyContent}
   </div>
 </body>
 </html>
   `;
 }
 
-export function generateTicketClaimedEmail(context: EmailTemplateContext): string {
-  const { ticketId, customerName, subject, status, priority, adminName, viewTicketUrl } = context;
+export function generateTicketConfirmationEmail(context: {
+  requesterName: string;
+  ticketPublicId: string;
+  subject: string;
+  viewTicketUrl?: string;
+}): string {
+  const { requesterName, ticketPublicId, subject, viewTicketUrl } = context;
 
   const content = `
-    <div class="header">
-      <h1>🎫 Ticket-ul tău a fost preluat</h1>
-    </div>
+    ${buildHeader("Ticket confirmat")}
     <div class="body">
-      <p>Salut ${customerName},</p>
-      
-      <p>Te informez că ticket-ul tău a fost preluat de echipa noastră de suport și este acum în procesare activă.</p>
-      
-      <div class="info-box">
-        <div class="info-row">
-          <span class="info-label">Ticket ID:</span>
-          <span class="info-value"><strong>${ticketId}</strong></span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Subiect:</span>
-          <span class="info-value">${subject}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Status:</span>
-          <span class="info-value">
-            <span class="badge badge-status-${status}">${status.replace("_", " ")}</span>
-          </span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Prioritate:</span>
-          <span class="info-value">
-            <span class="badge badge-priority-${priority}">${priority}</span>
-          </span>
-        </div>
-        ${adminName ? `<div class="info-row"><span class="info-label">Agent:</span><span class="info-value">${adminName}</span></div>` : ""}
+      <p>Salut ${requesterName},</p>
+      <p>Am primit solicitarea ta și am creat cu succes ticket-ul de suport.</p>
+
+      <div class="info-card">
+        <div class="info-row"><span class="label">Ticket ID</span><span class="value"><strong>${ticketPublicId}</strong></span></div>
+        <div class="info-row"><span class="label">Subiect</span><span class="value">${subject}</span></div>
+        <div class="info-row"><span class="label">Status</span><span class="value"><span class="chip" style="${getStatusStyle("open")}">open</span></span></div>
       </div>
 
-      <div class="section">
-        <h2>📝 Status updat</h2>
-        <p>Ticket-ul tău este acum în stare <strong>"In Progress"</strong>. Membrul echipei noastre analizează detaliile și lucrează la o soluție.</p>
-        <p>Vei primi o notificare imediat ce va exista un răspuns din partea noastră.</p>
-      </div>
+      <p class="section-title">Ce urmează</p>
+      <p>Echipa DevAtlas va analiza cazul și te va contacta direct din dashboard-ul de suport imediat ce ticket-ul este preluat.</p>
 
-      <div class="section" style="text-align: center;">
-        <a href="${viewTicketUrl || "https://devatlas.website"}" class="cta-button">Vizualizează Ticket-ul</a>
-      </div>
-
-      <div class="section">
-        <h2>❓ Ceva întrebări?</h2>
-        <p>Răspunde direct la acest email sau accesează panoul de suport pentru a vedea toate comunicațiile referitoare la ticket-ul tău.</p>
+      <div class="cta-wrap">
+        <a href="${viewTicketUrl || WEBSITE_URL}" class="cta-button">Vezi detaliile ticketului</a>
       </div>
     </div>
     <div class="footer">
       <p><strong>DevAtlas Support Team</strong></p>
-      <p>support@devatlas.website | www.devatlas.website</p>
+      <p>support@devatlas.website • www.devatlas.website</p>
       <p>© 2026 DevAtlas. Toate drepturile rezervate.</p>
     </div>
   `;
 
-  return generateBase("Ticket Preluat - DevAtlas Support", content);
+  return generateBase("Ticket confirmat - DevAtlas", content);
+}
+
+export function generateTicketClaimedEmail(context: EmailTemplateContext): string {
+  const { customerName, viewTicketUrl } = context;
+
+  const content = `
+    ${buildHeader("Ticket preluat de echipa DevAtlas")}
+    <div class="body">
+      <p>Salut ${customerName},</p>
+      <p>Ticket-ul tău a fost preluat și este acum în flux activ de analiză. Lucrăm deja la soluție.</p>
+
+      ${buildTicketInfo(context)}
+
+      <p class="section-title">Ce urmează</p>
+      <p>Primești automat update-uri pe email la fiecare răspuns sau schimbare importantă de status.</p>
+
+      <div class="cta-wrap">
+        <a href="${viewTicketUrl || WEBSITE_URL}" class="cta-button">Vizualizează ticket-ul</a>
+      </div>
+    </div>
+    <div class="footer">
+      <p><strong>DevAtlas Support Team</strong></p>
+      <p>support@devatlas.website • www.devatlas.website</p>
+      <p>© 2026 DevAtlas. Toate drepturile rezervate.</p>
+    </div>
+  `;
+
+  return generateBase("Ticket preluat - DevAtlas", content);
 }
 
 export function generateTicketClosedEmail(context: EmailTemplateContext): string {
-  const { ticketId, customerName, subject, message, adminName, viewTicketUrl } = context;
+  const { customerName, message, viewTicketUrl } = context;
 
   const content = `
-    <div class="header">
-      <h1>✅ Ticket-ul tău a fost rezolvat</h1>
-    </div>
+    ${buildHeader("Ticket rezolvat si inchis")}
     <div class="body">
       <p>Salut ${customerName},</p>
-      
-      <p>Suntem bucuroși să te informez că ticket-ul tău a fost rezolvat și închis.</p>
-      
-      <div class="info-box">
-        <div class="info-row">
-          <span class="info-label">Ticket ID:</span>
-          <span class="info-value"><strong>${ticketId}</strong></span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Subiect:</span>
-          <span class="info-value">${subject}</span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Status:</span>
-          <span class="info-value">
-            <span class="badge badge-status-closed">Closed</span>
-          </span>
-        </div>
-        ${adminName ? `<div class="info-row"><span class="info-label">Rezolvat de:</span><span class="info-value">${adminName}</span></div>` : ""}
-      </div>
+      <p>Am finalizat solicitarea ta. Ticket-ul a fost marcat ca închis.</p>
+
+      ${buildTicketInfo({ ...context, status: "closed" })}
 
       ${
         message
           ? `
-        <div class="section">
-          <h2>💬 Mesaj final din suport:</h2>
-          <div class="message-content">${message}</div>
-        </div>
+        <p class="section-title">Mesaj final din suport</p>
+        <div class="message-content">${message}</div>
       `
           : ""
       }
 
-      <div class="section">
-        <h2>🙌 Mulțumim!</h2>
-        <p>Apreciem că ai apelat la echipa DevAtlas Support. Feedback-ul tău este important pentru noi.</p>
-      </div>
-
-      <div class="section" style="text-align: center;">
-        <a href="${viewTicketUrl || "https://devatlas.website"}" class="cta-button">Vezi Detaliile Ticket-ului</a>
-      </div>
-
-      <div class="section">
-        <h2>❓ Ai nevoie de ajutor din nou?</h2>
-        <p>Dacă problema revine sau ai alte vorbe despre ticket-ul rezolvat, poți răspunde la acest email și vom redeschide ticket-ul.</p>
+      <div class="cta-wrap">
+        <a href="${viewTicketUrl || WEBSITE_URL}" class="cta-button">Vezi detaliile ticket-ului</a>
       </div>
     </div>
     <div class="footer">
       <p><strong>DevAtlas Support Team</strong></p>
-      <p>support@devatlas.website | www.devatlas.website</p>
+      <p>support@devatlas.website • www.devatlas.website</p>
       <p>© 2026 DevAtlas. Toate drepturile rezervate.</p>
     </div>
   `;
 
-  return generateBase("Ticket Rezolvat - DevAtlas Support", content);
+  return generateBase("Ticket inchis - DevAtlas", content);
 }
 
 export function generateReplyNotificationEmail(context: EmailTemplateContext): string {
-  const { ticketId, customerName, subject, message, adminName, viewTicketUrl } = context;
+  const { customerName, message, viewTicketUrl } = context;
 
   const content = `
-    <div class="header">
-      <h1>💬 Răspuns nou la ticket-ul tău</h1>
-    </div>
+    ${buildHeader("Raspuns nou la ticket-ul tau")}
     <div class="body">
       <p>Salut ${customerName},</p>
-      
-      <p>Echipa DevAtlas a adăugat un răspuns la ticket-ul tău.</p>
-      
-      <div class="info-box">
-        <div class="info-row">
-          <span class="info-label">Ticket ID:</span>
-          <span class="info-value"><strong>${ticketId}</strong></span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Subiect:</span>
-          <span class="info-value">${subject}</span>
-        </div>
-        ${adminName ? `<div class="info-row"><span class="info-label">De la:</span><span class="info-value">${adminName}</span></div>` : ""}
-      </div>
+      <p>Echipa DevAtlas a adăugat un răspuns nou pe solicitarea ta.</p>
+
+      ${buildTicketInfo(context)}
 
       ${
         message
           ? `
-        <div class="section">
-          <h2>📝 Mesaj:</h2>
-          <div class="message-content">${message}</div>
-        </div>
+        <p class="section-title">Mesaj primit</p>
+        <div class="message-content">${message}</div>
       `
           : ""
       }
 
-      <div class="section" style="text-align: center;">
-        <a href="${viewTicketUrl || "https://devatlas.website"}" class="cta-button">Vizualizează Răspunsul Complet</a>
-      </div>
-
-      <div class="section">
-        <p>Răspunde direct la acest email pentru a continua conversația.</p>
+      <div class="cta-wrap">
+        <a href="${viewTicketUrl || WEBSITE_URL}" class="cta-button">Deschide conversatia</a>
       </div>
     </div>
     <div class="footer">
       <p><strong>DevAtlas Support Team</strong></p>
-      <p>support@devatlas.website | www.devatlas.website</p>
+      <p>support@devatlas.website • www.devatlas.website</p>
       <p>© 2026 DevAtlas. Toate drepturile rezervate.</p>
     </div>
   `;
 
-  return generateBase("Răspuns Nou - DevAtlas Support", content);
+  return generateBase("Raspuns nou - DevAtlas", content);
 }
 
 export function generateChatInviteEmail(context: EmailTemplateContext): string {
-  const { ticketId, customerName, subject, viewTicketUrl, adminName } = context;
+  const { customerName, viewTicketUrl } = context;
 
   const content = `
-    <div class="header">
-      <h1>Chat suport disponibil</h1>
-    </div>
+    ${buildHeader("Chat live disponibil pentru ticket")}
     <div class="body">
       <p>Salut ${customerName},</p>
+      <p>Am deschis un canal de chat live pentru solicitarea ta. Poți conversa direct cu echipa de suport din browser.</p>
 
-      <p>Am deschis un chat dedicat pentru ticket-ul tău ${ticketId}. Poți răspunde direct din browser și poți trimite și imagini dacă este nevoie.</p>
+      ${buildTicketInfo({ ...context, status: "in_progress" })}
 
-      <div class="info-box">
-        <div class="info-row">
-          <span class="info-label">Ticket ID:</span>
-          <span class="info-value"><strong>${ticketId}</strong></span>
-        </div>
-        <div class="info-row">
-          <span class="info-label">Subiect:</span>
-          <span class="info-value">${subject}</span>
-        </div>
-        ${adminName ? `<div class="info-row"><span class="info-label">Agent:</span><span class="info-value">${adminName}</span></div>` : ""}
-      </div>
+      <p class="section-title">Acces rapid</p>
+      <p>Intră din butonul de mai jos. Dacă ai imagini relevante, le poți trimite direct în conversație.</p>
 
-      <div class="section">
-        <p>Apasă pe butonul de mai jos ca să intri în conversația live:</p>
-      </div>
-
-      <div class="section" style="text-align: center;">
-        <a href="${viewTicketUrl || "https://devatlas.website"}" class="cta-button">Deschide chat-ul</a>
-      </div>
-
-      <div class="section">
-        <p>Dacă linkul nu se deschide direct, copiază-l și deschide-l manual în browser.</p>
+      <div class="cta-wrap">
+        <a href="${viewTicketUrl || WEBSITE_URL}" class="cta-button">Deschide chat-ul</a>
       </div>
     </div>
     <div class="footer">
       <p><strong>DevAtlas Support Team</strong></p>
-      <p>support@devatlas.website | www.devatlas.website</p>
+      <p>support@devatlas.website • www.devatlas.website</p>
       <p>© 2026 DevAtlas. Toate drepturile rezervate.</p>
     </div>
   `;
 
-  return generateBase("Chat Suport - DevAtlas", content);
+  return generateBase("Chat suport - DevAtlas", content);
 }

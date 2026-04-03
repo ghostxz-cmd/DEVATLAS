@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { generateTicketConfirmationEmail } from "@/lib/email-templates";
+import { getAppBaseUrl } from "@/lib/app-base-url";
 
 const createSupportTicketSchema = z.object({
   fullName: z.string().min(2).max(120),
@@ -130,10 +132,17 @@ async function sendConfirmationEmail(input: {
   requesterName: string;
   ticketPublicId: string;
   subject: string;
+  viewTicketUrl?: string;
 }) {
   const apiKey = getRequiredEnv("RESEND_API_KEY");
   const from = process.env.EMAIL_FROM ?? "support@devatlas.website";
   const replyTo = process.env.EMAIL_REPLY_TO ?? from;
+  const html = generateTicketConfirmationEmail({
+    requesterName: input.requesterName,
+    ticketPublicId: input.ticketPublicId,
+    subject: input.subject,
+    viewTicketUrl: input.viewTicketUrl,
+  });
 
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -146,15 +155,7 @@ async function sendConfirmationEmail(input: {
       to: [input.to],
       subject: `Ticket confirmat: ${input.ticketPublicId}`,
       reply_to: replyTo,
-      html: `
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
-          <h2 style="margin: 0 0 16px;">Ticket confirmat</h2>
-          <p>Salut, ${escapeHtml(input.requesterName)},</p>
-          <p>Am primit solicitarea ta și am creat ticketul <strong>${escapeHtml(input.ticketPublicId)}</strong>.</p>
-          <p><strong>Subiect:</strong> ${escapeHtml(input.subject)}</p>
-          <p>Te vom contacta din dashboard-ul de suport imediat ce un admin preia cazul.</p>
-        </div>
-      `,
+      html,
     }),
   });
 
@@ -214,6 +215,7 @@ export async function POST(request: Request) {
       requesterName: parsedBody.fullName,
       ticketPublicId: result.ticket_public_id,
       subject: parsedBody.subject,
+      viewTicketUrl: `${getAppBaseUrl(request)}/support/tickets/${result.ticket_public_id}`,
     });
 
     return NextResponse.json({
