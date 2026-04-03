@@ -9,6 +9,7 @@
     "dev:api": "npm run -w apps/api start:dev",
     "dev:worker": "npm run -w apps/worker start:dev",
     "build": "npm run -w apps/api build ; npm run -w apps/worker build ; npm run -w apps/web build",
+    "build:web": "cd apps/web && npm run build",
     "lint": "npm run -w apps/web lint"
   },
   "keywords": [],
