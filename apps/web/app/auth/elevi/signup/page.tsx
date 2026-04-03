@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 import Navbar from "@/app/Navbar";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 export default function StudentSignUpPage() {
   const router = useRouter();
-  const supabase = useMemo(() => getSupabaseBrowserClient(), []);
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -123,6 +122,7 @@ export default function StudentSignUpPage() {
         return;
       }
 
+      const supabase = getSupabaseBrowserClient();
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
