@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, use } from "react";
 
 type SupportCategory = {
   id: string;
@@ -19,6 +19,15 @@ type SupportMessage = {
   message: string;
   is_internal: boolean;
   metadata: Record<string, unknown>;
+  created_at: string;
+};
+
+type ChatMessage = {
+  id: string;
+  chat_id: string;
+  sender_type: "admin" | "customer" | "system";
+  sender_email: string | null;
+  message: string;
   created_at: string;
 };
 
@@ -102,12 +111,22 @@ function getPriorityTone(priority: SupportTicketDetail["priority"]) {
   }
 }
 
-export default function PublicSupportTicketPage({ params }: { params: { ticketId: string } }) {
+export default function PublicSupportTicketPage({ params }: { params: Promise<{ ticketId: string }> }) {
+  const { ticketId } = use(params);
   const [ticket, setTicket] = useState<SupportTicketDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const ticketApiUrl = useMemo(() => `/api/support/tickets/${params.ticketId}`, [params.ticketId]);
+  // Chat state
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [newMessage, setNewMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+  const [lastFetch, setLastFetch] = useState<number>(0);
+
+  const ticketApiUrl = useMemo(() => `/api/support/tickets/${ticketId}`, [ticketId]);
+  const messagesApiUrl = useMemo(() => `/api/support/tickets/${ticketId}/messages`, [ticketId]);
 
   useEffect(() => {
     const loadTicket = async () => {
@@ -134,6 +153,64 @@ export default function PublicSupportTicketPage({ params }: { params: { ticketId
     void loadTicket();
   }, [ticketApiUrl]);
 
+  // Load chat messages
+  const loadChatMessages = async () => {
+    setChatError(null);
+    try {
+      const response = await fetch(messagesApiUrl);
+      if (!response.ok) {
+        throw new Error("Failed to load chat messages.");
+      }
+
+      const data = (await response.json()) as { ok: boolean; messages: ChatMessage[] };
+      setChatMessages(data.messages || []);
+      setLastFetch(Date.now());
+    } catch (err) {
+      setChatError(err instanceof Error ? err.message : "Failed to load messages.");
+    }
+  };
+
+  useEffect(() => {
+    // Initial load
+    void loadChatMessages();
+    setIsChatLoading(false);
+
+    // Poll for new messages every 3 seconds
+    const pollInterval = setInterval(() => {
+      void loadChatMessages();
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [messagesApiUrl]);
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || isSending) return;
+
+    setIsSending(true);
+    setChatError(null);
+
+    try {
+      const response = await fetch(messagesApiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: newMessage.trim() }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to send message.");
+      }
+
+      setNewMessage("");
+      // Refresh messages immediately after sending
+      await loadChatMessages();
+    } catch (err) {
+      setChatError(err instanceof Error ? err.message : "Failed to send message.");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-black text-white">
       <section className="relative overflow-hidden border-b border-white/10 bg-[radial-gradient(circle_at_top,_rgba(34,197,94,0.18),_transparent_32%),linear-gradient(180deg,_#050816_0%,_#02050c_100%)] px-4 py-16 sm:py-20">
@@ -152,7 +229,7 @@ export default function PublicSupportTicketPage({ params }: { params: { ticketId
           <div className="grid gap-3 sm:grid-cols-2 lg:w-[360px]">
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
               <div className="text-xs uppercase tracking-[0.25em] text-slate-400">Ticket ID</div>
-              <div className="mt-2 break-all text-sm font-medium text-white">{params.ticketId}</div>
+              <div className="mt-2 break-all text-sm font-medium text-white">{ticketId}</div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur">
               <div className="text-xs uppercase tracking-[0.25em] text-slate-400">Actualizat</div>
@@ -241,6 +318,69 @@ export default function PublicSupportTicketPage({ params }: { params: { ticketId
                       ))
                     )}
                   </div>
+                <div className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.28em] text-cyan-300/80">Chat Live</p>
+                      <h3 className="mt-2 text-xl font-semibold text-white">Vorbește direct cu echipa de suport</h3>
+                    </div>
+                    <div className="text-sm text-slate-400">{chatMessages.length} mesaje</div>
+                  </div>
+
+                  <div className="mt-6 space-y-4 max-h-80 overflow-y-auto rounded-2xl bg-black/20 p-4 border border-white/10">
+                    {chatMessages.length === 0 ? (
+                      <div className="rounded-2xl bg-black/30 p-4 text-center text-sm text-slate-400">
+                        Niciun mesaj încă. Fii primul care inițiază conversația!
+                      </div>
+                    ) : (
+                      chatMessages.map((msg) => (
+                        <div
+                          key={msg.id}
+                          className={`flex gap-3 ${
+                            msg.sender_type === "customer" ? "justify-end" : "justify-start"
+                          }`}
+                        >
+                          <div
+                            className={`rounded-2xl px-4 py-2 max-w-xs ${
+                              msg.sender_type === "customer"
+                                ? "bg-cyan-600/20 border border-cyan-500/30 text-cyan-100"
+                                : "bg-blue-600/20 border border-blue-500/30 text-blue-100"
+                            }`}
+                          >
+                            <p className="text-xs opacity-70 mb-1">
+                              {msg.sender_type === "customer" ? "Tu" : "Admin"}
+                            </p>
+                            <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                            <p className="text-xs opacity-50 mt-1">{formatDate(msg.created_at)}</p>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {chatError && (
+                    <div className="mt-3 rounded-2xl border border-red-500/30 bg-red-600/10 p-3 text-sm text-red-200">
+                      {chatError}
+                    </div>
+                  )}
+
+                  <form onSubmit={handleSendMessage} className="mt-4 flex gap-3">
+                    <input
+                      type="text"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder="Scrie mesajul tău..."
+                      disabled={isSending}
+                      className="flex-1 rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 disabled:opacity-50"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSending || !newMessage.trim()}
+                      className="rounded-2xl border border-cyan-500/30 bg-gradient-to-r from-cyan-600/20 to-blue-600/20 px-4 py-3 font-semibold text-white transition-all hover:border-cyan-400/50 hover:from-cyan-600/30 hover:to-blue-600/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSending ? "Se trimite..." : "Trimite"}
+                    </button>
+                  </form>
                 </div>
               </>
             ) : null}
