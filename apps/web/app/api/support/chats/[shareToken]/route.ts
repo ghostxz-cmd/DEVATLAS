@@ -30,7 +30,7 @@ type SupportChatMessage = {
 const postMessageSchema = z.object({
   message: z.string().min(2),
   senderName: z.string().optional(),
-  senderEmail: z.string().email().optional(),
+  senderEmail: z.string().email().or(z.literal("")).optional(),
   senderType: z.enum(["admin", "customer"]).optional().default("customer"),
 });
 
@@ -119,7 +119,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ sha
       body: JSON.stringify({
         chat_id: chat.id,
         sender_type: body.senderType,
-        sender_email: body.senderEmail ?? chat.customer_email,
+        sender_email: body.senderEmail && body.senderEmail.trim() ? body.senderEmail : chat.customer_email,
         message: body.message,
         attachments: [],
         is_internal: false,
