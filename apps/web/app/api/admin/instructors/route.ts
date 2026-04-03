@@ -19,7 +19,14 @@ const createInstructorSchema = z.object({
       isSupervisor: z.boolean().optional().default(false),
     })
     .optional()
-    .default({}),
+    .default({
+      canManageCourses: true,
+      canManageContent: false,
+      canReviewSubmissions: true,
+      canManageStudents: false,
+      canViewSupport: false,
+      isSupervisor: false,
+    }),
 });
 
 type AppUser = {
