@@ -159,6 +159,10 @@ export default function StudentSignInPage() {
                 </Link>
               </div>
 
+              <Link href="/auth/elevi/forgot-password" className="inline-block text-sm font-medium text-slate-300 transition hover:text-cyan-300">
+                Ai uitat parola?
+              </Link>
+
               {error && (
                 <div className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
                   {error}

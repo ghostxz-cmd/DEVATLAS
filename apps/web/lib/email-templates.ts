@@ -23,6 +23,14 @@ type StudentVerificationEmailContext = {
   verifyUrl?: string;
 };
 
+type StudentPasswordResetEmailContext = {
+  fullName: string;
+  email: string;
+  resetCode: string;
+  expiresInMinutes: number;
+  resetUrl?: string;
+};
+
 const LOGO_URL = "https://devatlas.website/logos/negru.fara.bg.png";
 const WEBSITE_URL = "https://devatlas.website";
 
@@ -485,6 +493,39 @@ export function generateStudentVerificationEmail(context: StudentVerificationEma
   `;
 
   return generateBase("Cod verificare cont - DevAtlas", content);
+}
+
+export function generateStudentPasswordResetEmail(context: StudentPasswordResetEmailContext): string {
+  const { fullName, email, resetCode, expiresInMinutes, resetUrl } = context;
+
+  const content = `
+    ${buildHeader("Resetare parolă elev")}
+    <div class="body">
+      <p>Salut ${fullName},</p>
+      <p>Am primit o solicitare de resetare parolă pentru contul ${email}. Introdu codul de mai jos pentru a seta o parolă nouă.</p>
+
+      <div class="info-card">
+        <div class="info-row"><span class="label">Email</span><span class="value">${email}</span></div>
+        <div class="info-row"><span class="label">Tip cerere</span><span class="value"><span class="chip" style="${getStatusStyle("in_progress")}">resetare parolă</span></span></div>
+        <div class="info-row"><span class="label">Expiră</span><span class="value">în ${expiresInMinutes} minute</span></div>
+      </div>
+
+      <p class="section-title">Cod resetare</p>
+      <div class="verification-code">${resetCode}</div>
+      <div class="verification-note">Dacă nu ai cerut resetarea parolei, ignoră acest email. Codul este valabil o singură dată.</div>
+
+      <div class="cta-wrap">
+        <a href="${resetUrl || WEBSITE_URL}" class="cta-button">Setează parola nouă</a>
+      </div>
+    </div>
+    <div class="footer">
+      <p><strong>DevAtlas Team</strong></p>
+      <p>support@devatlas.website • www.devatlas.website</p>
+      <p>© 2026 DevAtlas. Toate drepturile rezervate.</p>
+    </div>
+  `;
+
+  return generateBase("Resetare parolă - DevAtlas", content);
 }
 
 export function generateChatInviteEmail(context: EmailTemplateContext): string {
