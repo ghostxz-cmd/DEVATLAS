@@ -3,11 +3,31 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>("STUDENT");
+  const router = useRouter();
+
+  const isAuthenticated = Boolean(userEmail);
+  const dashboardPath = userRole === "ADMIN" || userRole === "INSTRUCTOR" ? "/dashboad-administrator" : "/cursuri";
+  const settingsPath = userRole === "ADMIN" || userRole === "INSTRUCTOR" ? "/dashboad-administrator/settings" : "/cursuri";
+  const profileInitial = (userName?.trim().charAt(0) || userEmail?.charAt(0) || "U").toUpperCase();
+
+  const handleLogout = async () => {
+    const supabase = getSupabaseBrowserClient();
+    await supabase.auth.signOut();
+    setIsUserDropdownOpen(false);
+    setIsMenuOpen(false);
+    router.push("/");
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -16,6 +36,33 @@ export default function Navbar() {
     
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+
+    const syncUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      const user = data.user;
+      setUserEmail(user?.email ?? null);
+      setUserName((user?.user_metadata?.full_name as string | undefined) ?? null);
+      setUserRole(((user?.user_metadata?.role as string | undefined) ?? "STUDENT").toUpperCase());
+    };
+
+    void syncUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      const user = session?.user;
+      setUserEmail(user?.email ?? null);
+      setUserName((user?.user_metadata?.full_name as string | undefined) ?? null);
+      setUserRole(((user?.user_metadata?.role as string | undefined) ?? "STUDENT").toUpperCase());
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   return (
@@ -100,12 +147,54 @@ export default function Navbar() {
 
           {/* Sign In Button (Desktop) */}
           <div className="hidden md:block">
-            <Link
-              href="/auth/signin"
-              className="px-4 lg:px-8 py-2 lg:py-3 bg-white text-black font-medium text-xs lg:text-[15px] rounded-lg lg:rounded-xl transition-all hover:bg-gray-100 whitespace-nowrap"
-            >
-              Intră în cont
-            </Link>
+            {isAuthenticated ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsUserDropdownOpen((prev) => !prev)}
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/5 text-sm font-semibold text-white transition hover:bg-white/10"
+                  aria-label="Meniu profil"
+                >
+                  {profileInitial}
+                </button>
+
+                {isUserDropdownOpen && (
+                  <div className="absolute right-0 top-full mt-3 w-64 overflow-hidden rounded-2xl border border-white/10 bg-gray-900 shadow-2xl">
+                    <div className="border-b border-white/10 px-4 py-3">
+                      <p className="text-sm font-semibold text-white">{userName || "Cont DevAtlas"}</p>
+                      <p className="mt-1 text-xs text-gray-400">{userEmail}</p>
+                    </div>
+
+                    <Link
+                      href={dashboardPath}
+                      className="block px-4 py-3 text-sm text-gray-200 transition hover:bg-white/10 hover:text-white"
+                      onClick={() => setIsUserDropdownOpen(false)}
+                    >
+                      Dashboard
+                    </Link>
+                    <Link
+                      href={settingsPath}
+                      className="block px-4 py-3 text-sm text-gray-200 transition hover:bg-white/10 hover:text-white"
+                      onClick={() => setIsUserDropdownOpen(false)}
+                    >
+                      Setări
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full px-4 py-3 text-left text-sm font-semibold text-red-300 transition hover:bg-red-500/10 hover:text-red-200"
+                    >
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                href="/auth/elevi/signin"
+                className="px-4 lg:px-8 py-2 lg:py-3 bg-white text-black font-medium text-xs lg:text-[15px] rounded-lg lg:rounded-xl transition-all hover:bg-gray-100 whitespace-nowrap"
+              >
+                Intră în cont
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -138,7 +227,15 @@ export default function Navbar() {
               <Link href="/despre/echipa-noastra" className="text-gray-200 hover:text-white hover:bg-white/5 transition-all px-4 py-3 rounded-lg text-sm" onClick={() => setIsMenuOpen(false)}>Echipa Noastră</Link>
               <Link href="/cursuri" className="text-gray-200 hover:text-white hover:bg-white/5 transition-all px-4 py-3 rounded-lg text-sm mt-2" onClick={() => setIsMenuOpen(false)}>Cursurile Noastre</Link>
               <Link href="/contact" className="text-gray-200 hover:text-white hover:bg-white/5 transition-all px-4 py-3 rounded-lg text-sm" onClick={() => setIsMenuOpen(false)}>Contact</Link>
-              <Link href="/auth/signin" className="mx-2 mt-4 px-6 py-3 bg-white text-black font-medium rounded-lg transition-all text-center text-sm" onClick={() => setIsMenuOpen(false)}>Intră în cont</Link>
+              {isAuthenticated ? (
+                <>
+                  <Link href={dashboardPath} className="mx-2 mt-4 px-6 py-3 bg-white text-black font-medium rounded-lg transition-all text-center text-sm" onClick={() => setIsMenuOpen(false)}>Dashboard</Link>
+                  <Link href={settingsPath} className="mx-2 px-6 py-3 border border-white/15 bg-white/5 text-white font-medium rounded-lg transition-all text-center text-sm" onClick={() => setIsMenuOpen(false)}>Setări</Link>
+                  <button onClick={handleLogout} className="mx-2 px-6 py-3 border border-red-400/30 bg-red-500/10 text-red-200 font-medium rounded-lg transition-all text-center text-sm">Logout</button>
+                </>
+              ) : (
+                <Link href="/auth/elevi/signin" className="mx-2 mt-4 px-6 py-3 bg-white text-black font-medium rounded-lg transition-all text-center text-sm" onClick={() => setIsMenuOpen(false)}>Intră în cont</Link>
+              )}
             </div>
           </div>
         )}

@@ -15,6 +15,14 @@ type EmailTemplateContext = {
   viewTicketUrl?: string;
 };
 
+type StudentVerificationEmailContext = {
+  fullName: string;
+  email: string;
+  verificationCode: string;
+  expiresInMinutes: number;
+  verifyUrl?: string;
+};
+
 const LOGO_URL = "https://devatlas.website/logos/negru.fara.bg.png";
 const WEBSITE_URL = "https://devatlas.website";
 
@@ -232,6 +240,27 @@ function generateBase(title: string, bodyContent: string): string {
       white-space: pre-wrap;
       word-wrap: break-word;
     }
+    .verification-code {
+      margin: 16px 0;
+      padding: 18px 20px;
+      border-radius: 16px;
+      border: 1px solid ${COLOR.border};
+      background: linear-gradient(180deg, #101c37 0%, #0b142b 100%);
+      color: ${COLOR.white};
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: 0.28em;
+      text-align: center;
+    }
+    .verification-note {
+      margin-top: 10px;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid ${COLOR.border};
+      background: #081225;
+      color: ${COLOR.muted};
+      font-size: 13px;
+    }
     .cta-wrap {
       text-align: center;
       margin: 24px 0 10px 0;
@@ -420,6 +449,42 @@ export function generateReplyNotificationEmail(context: EmailTemplateContext): s
   `;
 
   return generateBase("Raspuns nou - DevAtlas", content);
+}
+
+export function generateStudentVerificationEmail(context: StudentVerificationEmailContext): string {
+  const { fullName, email, verificationCode, expiresInMinutes, verifyUrl } = context;
+
+  const content = `
+    ${buildHeader("Verificare cont elev")}
+    <div class="body">
+      <p>Salut ${fullName},</p>
+      <p>Am primit cererea de creare cont pentru adresa ${email}. Folosește codul de mai jos pentru a confirma că acest email îți aparține.</p>
+
+      <div class="info-card">
+        <div class="info-row"><span class="label">Email</span><span class="value">${email}</span></div>
+        <div class="info-row"><span class="label">Stare</span><span class="value"><span class="chip" style="${getStatusStyle("in_progress")}">în verificare</span></span></div>
+        <div class="info-row"><span class="label">Expiră</span><span class="value">în ${expiresInMinutes} minute</span></div>
+      </div>
+
+      <p class="section-title">Codul tău</p>
+      <div class="verification-code">${verificationCode}</div>
+      <div class="verification-note">Dacă nu ai cerut acest cont, poți ignora mesajul. Codul este valabil o singură dată și expiră automat.</div>
+
+      <p class="section-title">Ce urmează</p>
+      <p>După ce introduci codul în formular, contul va fi creat și vei putea intra în platformă imediat.</p>
+
+      <div class="cta-wrap">
+        <a href="${verifyUrl || WEBSITE_URL}" class="cta-button">Continuă verificarea</a>
+      </div>
+    </div>
+    <div class="footer">
+      <p><strong>DevAtlas Team</strong></p>
+      <p>support@devatlas.website • www.devatlas.website</p>
+      <p>© 2026 DevAtlas. Toate drepturile rezervate.</p>
+    </div>
+  `;
+
+  return generateBase("Cod verificare cont - DevAtlas", content);
 }
 
 export function generateChatInviteEmail(context: EmailTemplateContext): string {

@@ -26,6 +26,8 @@ type ChatMessage = {
 
 const sendMessageSchema = z.object({
   message: z.string().min(1).max(5000),
+  senderType: z.enum(["admin", "customer"]).optional().default("customer"),
+  senderEmail: z.string().email().optional(),
 });
 
 function getRequiredEnv(name: string) {
@@ -169,8 +171,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ tic
       },
       body: JSON.stringify({
         chat_id: chat.id,
-        sender_type: "customer",
-        sender_email: ticket.requester_email,
+        sender_type: body.senderType,
+        sender_email: body.senderEmail || ticket.requester_email,
         message: body.message,
       }),
     });

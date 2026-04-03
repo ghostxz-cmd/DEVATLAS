@@ -32,6 +32,14 @@ type SupportMessage = {
   created_at: string;
 };
 
+type SupportChatMessage = {
+  id: string;
+  sender_type: "admin" | "customer" | "system";
+  sender_email: string | null;
+  message: string;
+  created_at: string;
+};
+
 type SupportTicketDetail = {
   id: string;
   public_id: string;
@@ -101,8 +109,10 @@ export default function AdminSupportPage() {
   const [composerTab, setComposerTab] = useState<"write" | "preview">("write");
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [chatLink, setChatLink] = useState<string | null>(null);
-  const [isCreatingChat, setIsCreatingChat] = useState(false);
+  const [chatMessages, setChatMessages] = useState<SupportChatMessage[]>([]);
+  const [chatMessageText, setChatMessageText] = useState("");
+  const [isLoadingChat, setIsLoadingChat] = useState(false);
+  const [isSendingChatMessage, setIsSendingChatMessage] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{ action: "claim" | "close"; pending: boolean } | null>(null);
   const replyRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -215,6 +225,60 @@ export default function AdminSupportPage() {
       resolved: tickets.filter((ticket) => ticket.status === "resolved").length,
     };
   }, [tickets]);
+
+  const ticketMessagesApiUrl = useMemo(() => {
+    if (!selectedTicket?.public_id) {
+      return null;
+    }
+
+    return `/api/support/tickets/${selectedTicket.public_id}/messages`;
+  }, [selectedTicket?.public_id]);
+
+  useEffect(() => {
+    if (!ticketMessagesApiUrl) {
+      setChatMessages([]);
+      return;
+    }
+
+    const controller = new AbortController();
+
+    const loadChatMessages = async (withLoader: boolean) => {
+      if (withLoader) {
+        setIsLoadingChat(true);
+      }
+
+      try {
+        const response = await fetch(ticketMessagesApiUrl, { signal: controller.signal });
+
+        if (!response.ok) {
+          throw new Error("Nu am putut încărca mesajele de chat.");
+        }
+
+        const payload = (await response.json()) as { messages?: SupportChatMessage[] };
+        setChatMessages(payload.messages ?? []);
+      } catch (chatError) {
+        if (chatError instanceof DOMException && chatError.name === "AbortError") {
+          return;
+        }
+        setError(chatError instanceof Error ? chatError.message : "A apărut o eroare la încărcarea chat-ului.");
+      } finally {
+        if (withLoader) {
+          setIsLoadingChat(false);
+        }
+      }
+    };
+
+    void loadChatMessages(true);
+
+    const interval = window.setInterval(() => {
+      void loadChatMessages(false);
+    }, 3000);
+
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+    };
+  }, [ticketMessagesApiUrl]);
 
   const refreshSelectedTicket = async (ticketPublicId: string) => {
     const response = await fetch(`/api/support/tickets/${ticketPublicId}`);
@@ -344,35 +408,43 @@ export default function AdminSupportPage() {
     });
   };
 
-  const handleCreateChat = async () => {
-    if (!selectedTicket) return;
+  const handleSendTicketChatMessage = async () => {
+    if (!selectedTicket || !ticketMessagesApiUrl || chatMessageText.trim().length < 2) {
+      return;
+    }
 
-    setIsCreatingChat(true);
+    setIsSendingChatMessage(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/support/tickets/${selectedTicket.public_id}/chat`, {
+      const response = await fetch(ticketMessagesApiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          adminName: "DevAtlas Support",
+          message: chatMessageText,
+          senderType: "admin",
+          senderEmail: "support@devatlas.website",
         }),
       });
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { message?: string } | null;
-        throw new Error(payload?.message || "Nu am putut crea chat-ul.");
+        throw new Error(payload?.message || "Nu am putut trimite mesajul de chat.");
       }
 
-      const payload = (await response.json()) as { chat?: { shareUrl?: string } };
-      setChatLink(payload.chat?.shareUrl || null);
-      setSuccessMessage("Chat-ul a fost creat și emailul a fost trimis automat.");
+      setChatMessageText("");
+
+      const refreshResponse = await fetch(ticketMessagesApiUrl);
+      if (refreshResponse.ok) {
+        const payload = (await refreshResponse.json()) as { messages?: SupportChatMessage[] };
+        setChatMessages(payload.messages ?? []);
+      }
     } catch (chatError) {
-      setError(chatError instanceof Error ? chatError.message : "A apărut o eroare.");
+      setError(chatError instanceof Error ? chatError.message : "A apărut o eroare la chat.");
     } finally {
-      setIsCreatingChat(false);
+      setIsSendingChatMessage(false);
     }
   };
 
@@ -525,19 +597,59 @@ export default function AdminSupportPage() {
                     <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-[#202124]">{message.message}</p>
                   </div>
                 ))}
+
+                <div className="rounded-lg border border-[#d3d7dd] bg-white p-3">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold text-[#202124]">Chat direct în ticket</h3>
+                    <span className="text-xs text-[#5f6368]">{chatMessages.length} mesaje</span>
+                  </div>
+
+                  <div className="max-h-56 space-y-2 overflow-auto rounded-md border border-[#e0e2e7] bg-[#f8f9fa] p-2">
+                    {isLoadingChat ? (
+                      <p className="text-sm text-[#5f6368]">Se încarcă chat-ul...</p>
+                    ) : chatMessages.length === 0 ? (
+                      <p className="text-sm text-[#5f6368]">Nu există mesaje în chat încă.</p>
+                    ) : (
+                      chatMessages.map((chatMessage) => (
+                        <div
+                          key={chatMessage.id}
+                          className={`rounded-md border px-3 py-2 ${
+                            chatMessage.sender_type === "admin"
+                              ? "ml-8 border-[#a8c7fa] bg-[#e8f0fe]"
+                              : "mr-8 border-[#d3d7dd] bg-white"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-xs text-[#5f6368]">
+                            <span>{chatMessage.sender_type === "admin" ? "Admin" : "Client"}</span>
+                            <span>{formatDate(chatMessage.created_at)}</span>
+                          </div>
+                          <p className="mt-1 whitespace-pre-wrap text-sm text-[#202124]">{chatMessage.message}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      value={chatMessageText}
+                      onChange={(event) => setChatMessageText(event.target.value)}
+                      placeholder="Scrie mesaj către client..."
+                      className="h-10 flex-1 rounded-lg border border-[#d3d7dd] bg-white px-3 text-sm outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => void handleSendTicketChatMessage()}
+                      disabled={isSendingChatMessage || chatMessageText.trim().length < 2}
+                      className="inline-flex h-10 items-center rounded-lg bg-[#1a73e8] px-4 text-sm font-medium text-white transition hover:bg-[#1558b0] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {isSendingChatMessage ? "Se trimite..." : "Trimite"}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div className="border-t border-[#e0e2e7] p-4">
                 <div className="mb-3 grid grid-cols-1 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void handleCreateChat()}
-                    disabled={isCreatingChat || !selectedTicket}
-                    className="w-full rounded-lg border border-[#d3d7dd] bg-white px-4 py-2 text-sm font-semibold text-[#202124] hover:bg-[#f8f9fa] transition disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {isCreatingChat ? "Se creează chat-ul..." : "Creează chat"}
-                  </button>
-
                   {selectedTicket.status === "open" && (
                     <button
                       type="button"
@@ -558,15 +670,6 @@ export default function AdminSupportPage() {
                     </button>
                   )}
                 </div>
-
-                {chatLink && (
-                  <div className="mb-3 rounded-lg border border-[#dbe2ea] bg-[#f8fafc] px-4 py-3 text-sm text-[#202124]">
-                    <div className="text-xs uppercase tracking-[0.12em] text-[#5f6368]">Link chat</div>
-                    <a href={chatLink} target="_blank" rel="noreferrer" className="mt-1 block break-all text-[#1a73e8] underline">
-                      {chatLink}
-                    </a>
-                  </div>
-                )}
 
                 <div className="mb-3 grid grid-cols-2 gap-2">
                   <select
