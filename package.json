@@ -18,5 +18,9 @@
   "workspaces": [
     "apps/*",
     "packages/*"
-  ]
+  ],
+  "dependencies": {
+    "@supabase/supabase-js": "^2.101.1",
+    "pg": "^8.20.0"
+  }
 }

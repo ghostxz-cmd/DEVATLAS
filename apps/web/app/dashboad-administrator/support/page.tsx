@@ -101,6 +101,9 @@ export default function AdminSupportPage() {
   const [composerTab, setComposerTab] = useState<"write" | "preview">("write");
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [chatLink, setChatLink] = useState<string | null>(null);
+  const [isCreatingChat, setIsCreatingChat] = useState(false);
+  const [confirmDialog, setConfirmDialog] = useState<{ action: "claim" | "close"; pending: boolean } | null>(null);
   const replyRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
@@ -311,8 +314,65 @@ export default function AdminSupportPage() {
           ...(patch.priority && { priority: patch.priority }),
         };
       });
+
+      // Close confirmation dialog on success
+      setConfirmDialog(null);
     } catch (patchError) {
       setError(patchError instanceof Error ? patchError.message : "A apărut o eroare.");
+      // Reset pending state but keep dialog open on error
+      setConfirmDialog((prev) => prev ? { ...prev, pending: false } : null);
+    }
+  };
+
+  const handleClaimTicket = async () => {
+    if (!selectedTicket) return;
+    
+    setConfirmDialog((prev) => prev ? { ...prev, pending: true } : null);
+    await updateTicketMeta(selectedTicket.public_id, {
+      status: "in_progress",
+      adminName: "DevAtlas Support",
+    });
+  };
+
+  const handleCloseTicket = async () => {
+    if (!selectedTicket) return;
+    
+    setConfirmDialog((prev) => prev ? { ...prev, pending: true } : null);
+    await updateTicketMeta(selectedTicket.public_id, {
+      status: "closed",
+      adminName: "DevAtlas Support",
+    });
+  };
+
+  const handleCreateChat = async () => {
+    if (!selectedTicket) return;
+
+    setIsCreatingChat(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/support/tickets/${selectedTicket.public_id}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          adminName: "DevAtlas Support",
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+        throw new Error(payload?.message || "Nu am putut crea chat-ul.");
+      }
+
+      const payload = (await response.json()) as { chat?: { shareUrl?: string } };
+      setChatLink(payload.chat?.shareUrl || null);
+      setSuccessMessage("Chat-ul a fost creat și emailul a fost trimis automat.");
+    } catch (chatError) {
+      setError(chatError instanceof Error ? chatError.message : "A apărut o eroare.");
+    } finally {
+      setIsCreatingChat(false);
     }
   };
 
@@ -468,18 +528,44 @@ export default function AdminSupportPage() {
               </div>
 
               <div className="border-t border-[#e0e2e7] p-4">
-                {selectedTicket.status === "open" && (
+                <div className="mb-3 grid grid-cols-1 gap-2">
                   <button
-                    onClick={() => {
-                      void updateTicketMeta(selectedTicket.public_id, {
-                        status: "in_progress",
-                        adminName: "DevAtlas Support",
-                      });
-                    }}
-                    className="mb-3 w-full rounded-lg bg-[#4f46e5] px-4 py-2 text-sm font-semibold text-white hover:bg-[#4338ca] transition"
+                    type="button"
+                    onClick={() => void handleCreateChat()}
+                    disabled={isCreatingChat || !selectedTicket}
+                    className="w-full rounded-lg border border-[#d3d7dd] bg-white px-4 py-2 text-sm font-semibold text-[#202124] hover:bg-[#f8f9fa] transition disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    📋 Preia Ticket
+                    {isCreatingChat ? "Se creează chat-ul..." : "Creează chat"}
                   </button>
+
+                  {selectedTicket.status === "open" && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDialog({ action: "claim", pending: false })}
+                      className="w-full rounded-lg bg-[#1a73e8] px-4 py-2 text-sm font-semibold text-white hover:bg-[#1558b0] transition"
+                    >
+                      Preia Ticket
+                    </button>
+                  )}
+
+                  {["in_progress", "waiting_user"].includes(selectedTicket.status) && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDialog({ action: "close", pending: false })}
+                      className="w-full rounded-lg bg-[#d33b27] px-4 py-2 text-sm font-semibold text-white hover:bg-[#a63523] transition"
+                    >
+                      Inchide Ticket
+                    </button>
+                  )}
+                </div>
+
+                {chatLink && (
+                  <div className="mb-3 rounded-lg border border-[#dbe2ea] bg-[#f8fafc] px-4 py-3 text-sm text-[#202124]">
+                    <div className="text-xs uppercase tracking-[0.12em] text-[#5f6368]">Link chat</div>
+                    <a href={chatLink} target="_blank" rel="noreferrer" className="mt-1 block break-all text-[#1a73e8] underline">
+                      {chatLink}
+                    </a>
+                  </div>
                 )}
 
                 <div className="mb-3 grid grid-cols-2 gap-2">
@@ -627,6 +713,56 @@ export default function AdminSupportPage() {
       {error && (
         <div className="fixed bottom-4 right-4 rounded-lg border border-[#f3c2c2] bg-[#fce8e6] px-4 py-3 text-sm text-[#c5221f] shadow-lg">
           {error}
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="rounded-lg bg-white shadow-xl" style={{ width: "95%", maxWidth: "400px" }}>
+            <div className="border-b border-[#e0e2e7] px-6 py-4">
+              <h3 className="text-lg font-semibold text-[#202124]">
+                {confirmDialog.action === "claim" ? "Preia Ticket" : "Inchide Ticket"}
+              </h3>
+            </div>
+
+            <div className="px-6 py-4">
+              <p className="text-sm text-[#5f6368]">
+                {confirmDialog.action === "claim"
+                  ? "Ești sigur că vrei să preiei acest ticket? Clientul va primi o notificare."
+                  : "Ești sigur că vrei să inchizi acest ticket? Clientul va primi o confirmare și nu va putea mai reopeni singur."}
+              </p>
+            </div>
+
+            <div className="flex gap-3 border-t border-[#e0e2e7] px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setConfirmDialog(null)}
+                disabled={confirmDialog.pending}
+                className="flex-1 rounded-lg border border-[#d3d7dd] bg-white px-4 py-2 text-sm font-medium text-[#3c4043] hover:bg-[#f8f9fa] transition disabled:opacity-60"
+              >
+                Anuleaza
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirmDialog.action === "claim") {
+                    void handleClaimTicket();
+                  } else {
+                    void handleCloseTicket();
+                  }
+                }}
+                disabled={confirmDialog.pending}
+                className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium text-white transition ${
+                  confirmDialog.action === "close"
+                    ? "bg-[#d33b27] hover:bg-[#a63523] disabled:bg-[#d33b27]/60"
+                    : "bg-[#1a73e8] hover:bg-[#1558b0] disabled:bg-[#1a73e8]/60"
+                }`}
+              >
+                {confirmDialog.pending ? "Se proceseaza..." : confirmDialog.action === "claim" ? "Preia" : "Inchide"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </main>

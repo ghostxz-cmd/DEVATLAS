@@ -5,6 +5,7 @@ import {
   generateTicketClosedEmail,
   generateReplyNotificationEmail,
 } from "@/lib/email-templates";
+import { getAppBaseUrl } from "@/lib/app-base-url";
 
 const updateSupportTicketSchema = z.object({
   status: z.enum(["open", "in_progress", "waiting_user", "resolved", "closed"]).optional(),
@@ -275,7 +276,7 @@ export async function PATCH(
       // Send automated emails based on status change
       if (body.status === "in_progress" && ticket.status !== "in_progress") {
         // Ticket claimed
-        const ticketUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "https://devatlas.website"}/support/tickets/${ticket.public_id}`;
+        const ticketUrl = `${getAppBaseUrl(request)}/support/tickets/${ticket.public_id}`;
         const emailHtml = generateTicketClaimedEmail({
           ticketId: ticket.public_id,
           customerName: ticket.requester_name || ticket.requester_email,
@@ -296,7 +297,7 @@ export async function PATCH(
 
       if (body.status === "closed" && ticket.status !== "closed") {
         // Ticket closed
-        const ticketUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "https://devatlas.website"}/support/tickets/${ticket.public_id}`;
+        const ticketUrl = `${getAppBaseUrl(request)}/support/tickets/${ticket.public_id}`;
         const emailHtml = generateTicketClosedEmail({
           ticketId: ticket.public_id,
           customerName: ticket.requester_name || ticket.requester_email,
@@ -393,7 +394,7 @@ export async function POST(
     }
 
     // Send professional notification email
-    const ticketUrl = `${process.env.NEXT_PUBLIC_BASE_URL || "https://devatlas.website"}/support/tickets/${ticket.public_id}`;
+    const ticketUrl = `${getAppBaseUrl(request)}/support/tickets/${ticket.public_id}`;
     const emailHtml = generateReplyNotificationEmail({
       ticketId: ticket.public_id,
       customerName: ticket.requester_name || ticket.requester_email,

@@ -364,3 +364,49 @@ export function generateReplyNotificationEmail(context: EmailTemplateContext): s
 
   return generateBase("Răspuns Nou - DevAtlas Support", content);
 }
+
+export function generateChatInviteEmail(context: EmailTemplateContext): string {
+  const { ticketId, customerName, subject, viewTicketUrl, adminName } = context;
+
+  const content = `
+    <div class="header">
+      <h1>Chat suport disponibil</h1>
+    </div>
+    <div class="body">
+      <p>Salut ${customerName},</p>
+
+      <p>Am deschis un chat dedicat pentru ticket-ul tău ${ticketId}. Poți răspunde direct din browser și poți trimite și imagini dacă este nevoie.</p>
+
+      <div class="info-box">
+        <div class="info-row">
+          <span class="info-label">Ticket ID:</span>
+          <span class="info-value"><strong>${ticketId}</strong></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Subiect:</span>
+          <span class="info-value">${subject}</span>
+        </div>
+        ${adminName ? `<div class="info-row"><span class="info-label">Agent:</span><span class="info-value">${adminName}</span></div>` : ""}
+      </div>
+
+      <div class="section">
+        <p>Apasă pe butonul de mai jos ca să intri în conversația live:</p>
+      </div>
+
+      <div class="section" style="text-align: center;">
+        <a href="${viewTicketUrl || "https://devatlas.website"}" class="cta-button">Deschide chat-ul</a>
+      </div>
+
+      <div class="section">
+        <p>Dacă linkul nu se deschide direct, copiază-l și deschide-l manual în browser.</p>
+      </div>
+    </div>
+    <div class="footer">
+      <p><strong>DevAtlas Support Team</strong></p>
+      <p>support@devatlas.website | www.devatlas.website</p>
+      <p>© 2026 DevAtlas. Toate drepturile rezervate.</p>
+    </div>
+  `;
+
+  return generateBase("Chat Suport - DevAtlas", content);
+}
