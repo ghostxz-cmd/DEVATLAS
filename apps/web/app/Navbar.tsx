@@ -17,8 +17,8 @@ export default function Navbar() {
   const router = useRouter();
 
   const isAuthenticated = Boolean(userEmail);
-  const dashboardPath = userRole === "ADMIN" || userRole === "INSTRUCTOR" ? "/dashboad-administrator" : "/cursuri";
-  const settingsPath = userRole === "ADMIN" || userRole === "INSTRUCTOR" ? "/dashboad-administrator/settings" : "/cursuri";
+  const dashboardPath = userRole === "ADMIN" ? "/dashboad-administrator" : userRole === "INSTRUCTOR" ? "/dashboard-profesor" : "/cursuri";
+  const settingsPath = userRole === "ADMIN" ? "/dashboad-administrator/settings" : userRole === "INSTRUCTOR" ? "/dashboard-profesor" : "/cursuri";
   const profileInitial = (userName?.trim().charAt(0) || userEmail?.charAt(0) || "U").toUpperCase();
 
   const handleLogout = async () => {

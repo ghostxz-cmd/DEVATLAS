@@ -8,7 +8,7 @@ const requestResetSchema = z.object({
   email: z.string().email().max(320),
 });
 
-type StudentProfile = {
+type InstructorProfile = {
   email: string;
   full_name: string;
   auth_user_id: string | null;
@@ -36,7 +36,7 @@ function normalizeEmail(email: string) {
 }
 
 function hashResetCode(email: string, code: string) {
-  const pepper = process.env.AUTH_PASSWORD_RESET_PEPPER ?? "devatlas-student-password-reset";
+  const pepper = process.env.AUTH_PASSWORD_RESET_PEPPER ?? "devatlas-instructor-password-reset";
   return crypto.createHash("sha256").update(`${normalizeEmail(email)}:${code}:${pepper}`).digest("hex");
 }
 
@@ -66,7 +66,7 @@ async function sendEmail(input: {
     body: JSON.stringify({
       from,
       to: [input.to],
-      subject: "Cod resetare parolă DevAtlas",
+      subject: "Cod resetare parolă profesor DevAtlas",
       reply_to: replyTo,
       html,
     }),
@@ -74,7 +74,7 @@ async function sendEmail(input: {
 
   if (!response.ok) {
     const errorText = await response.text();
-    throw new Error(`Resend password reset email failed: ${errorText}`);
+    throw new Error(`Resend instructor password reset email failed: ${errorText}`);
   }
 }
 
@@ -85,7 +85,7 @@ export async function POST(request: Request) {
     const email = normalizeEmail(payload.email);
 
     const profileResponse = await fetch(
-      `${supabaseUrl}/rest/v1/student_accounts?select=email,full_name,auth_user_id&email=eq.${encodeURIComponent(email)}&limit=1`,
+      `${supabaseUrl}/rest/v1/instructor_accounts?select=email,full_name,auth_user_id&email=eq.${encodeURIComponent(email)}&limit=1`,
       { headers: getSupabaseHeaders() },
     );
 
@@ -93,10 +93,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: await profileResponse.text() }, { status: 502 });
     }
 
-    const profiles = (await profileResponse.json()) as StudentProfile[];
+    const profiles = (await profileResponse.json()) as InstructorProfile[];
     const profile = profiles[0] ?? null;
 
-    // Return success even if account is missing to avoid account enumeration.
     if (!profile || !profile.auth_user_id) {
       return NextResponse.json({ ok: true });
     }
@@ -105,7 +104,7 @@ export async function POST(request: Request) {
     const codeHash = hashResetCode(email, resetCode);
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
-    const upsertResponse = await fetch(`${supabaseUrl}/rest/v1/student_password_resets?on_conflict=email`, {
+    const upsertResponse = await fetch(`${supabaseUrl}/rest/v1/instructor_password_resets?on_conflict=email`, {
       method: "POST",
       headers: {
         ...getSupabaseHeaders(),
@@ -129,7 +128,7 @@ export async function POST(request: Request) {
       to: email,
       fullName: profile.full_name,
       resetCode,
-      resetUrl: `${getAppBaseUrl(request)}/auth/elevi/forgot-password`,
+      resetUrl: `${getAppBaseUrl(request)}/auth/forgot-password`,
     });
 
     return NextResponse.json({ ok: true });
@@ -139,7 +138,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { message: error instanceof Error ? error.message : "Failed to send reset code." },
+      { message: error instanceof Error ? error.message : "Failed to send instructor reset code." },
       { status: 500 },
     );
   }

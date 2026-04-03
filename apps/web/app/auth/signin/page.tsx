@@ -1,12 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 export default function SignInPage() {
   const router = useRouter();
-  const [nextPath, setNextPath] = useState("/dashboad-administrator");
+  const [nextPath, setNextPath] = useState("/dashboard-profesor");
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -56,45 +57,98 @@ export default function SignInPage() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#f6f8fc] px-4">
-      <section className="w-full max-w-md rounded-3xl border border-[#dadce0] bg-white p-8 shadow-sm">
-        <h1 className="text-3xl font-semibold text-[#202124]">Admin login</h1>
-        <p className="mt-2 text-sm text-[#5f6368]">Autentificare pentru zona de administrare.</p>
+    <main className="relative min-h-screen overflow-hidden bg-black px-4 pb-20 pt-20 text-white sm:px-6 lg:px-8">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(34,211,238,0.12),transparent_28%),radial-gradient(circle_at_top_right,rgba(37,99,235,0.15),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(255,255,255,0.06),transparent_24%)]" />
 
-        <form onSubmit={handleSignIn} className="mt-6 space-y-4">
-          <label className="block space-y-2">
-            <span className="text-sm text-[#3c4043]">Email</span>
-            <input
-              type="email"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              required
-              className="h-12 w-full rounded-xl border border-[#dadce0] px-4 text-sm outline-none"
-            />
-          </label>
+      <div className="relative mx-auto grid w-full max-w-7xl gap-8 lg:grid-cols-[1.08fr_0.92fr] lg:items-start">
+        <section className="relative overflow-hidden rounded-[2.4rem] border border-white/10 bg-[#070b14]/95 p-6 shadow-[0_30px_120px_rgba(0,0,0,0.42)] backdrop-blur sm:p-8 lg:p-10">
+          <div className="relative z-10 max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300">
+              <span className="h-2 w-2 rounded-full bg-cyan-300" />
+              Instructor Access
+            </div>
 
-          <label className="block space-y-2">
-            <span className="text-sm text-[#3c4043]">Password</span>
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              className="h-12 w-full rounded-xl border border-[#dadce0] px-4 text-sm outline-none"
-            />
-          </label>
+            <h1 className="mt-6 text-4xl font-black leading-[0.95] sm:text-5xl lg:text-7xl">
+              Conectare profesor.
+              <span className="mt-3 block text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500">
+                Dashboard avansat.
+              </span>
+            </h1>
 
-          {error && <p className="rounded-lg bg-[#fce8e6] px-3 py-2 text-sm text-[#c5221f]">{error}</p>}
+            <p className="mt-6 max-w-xl text-base leading-8 text-gray-300 sm:text-lg">
+              Acces dedicat pentru profesori cu gestionare cursuri, conținut și activitate în dashboardul de administrare.
+            </p>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-[#1a73e8] text-sm font-semibold text-white transition hover:bg-[#1558b0] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-      </section>
+            <div className="mt-10 grid gap-4 sm:grid-cols-3">
+              <div className="rounded-2xl border border-white/10 bg-[#050814]/95 p-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Rol</div>
+                <div className="mt-2 text-base font-semibold text-white">INSTRUCTOR</div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-[#050814]/95 p-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Permisiuni</div>
+                <div className="mt-2 text-base font-semibold text-white">Configurabile</div>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-[#050814]/95 p-4">
+                <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Audit</div>
+                <div className="mt-2 text-base font-semibold text-white">Activitate monitorizată</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="relative overflow-hidden rounded-[2.4rem] border border-white/10 bg-[#070b14]/95 p-6 shadow-[0_30px_120px_rgba(0,0,0,0.5)] backdrop-blur sm:p-8 lg:p-10">
+          <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500" />
+
+          <div className="mb-6">
+            <p className="text-xs uppercase tracking-[0.2em] text-cyan-300/80">Login profesor</p>
+            <h2 className="mt-2 text-2xl font-bold text-white">Intră în dashboard</h2>
+          </div>
+
+          <form onSubmit={handleSignIn} className="space-y-4">
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-gray-300">Email</span>
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                required
+                className="h-12 w-full rounded-2xl border border-white/12 bg-black/35 px-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                placeholder="profesor@devatlas.ro"
+              />
+            </label>
+
+            <label className="block space-y-2">
+              <span className="text-sm font-medium text-gray-300">Parolă</span>
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                className="h-12 w-full rounded-2xl border border-white/12 bg-black/35 px-4 text-sm text-white outline-none transition placeholder:text-slate-500 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+                placeholder="••••••••"
+              />
+            </label>
+
+            <Link href="/auth/forgot-password" className="inline-block text-sm font-medium text-slate-300 transition hover:text-cyan-300">
+              Ai uitat parola?
+            </Link>
+
+            {error && (
+              <p className="rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                {error}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 text-sm font-bold text-black shadow-[0_10px_30px_rgba(34,211,238,0.22)] transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {loading ? "Se autentifică..." : "Intră în dashboard"}
+            </button>
+          </form>
+        </section>
+      </div>
     </main>
   );
 }

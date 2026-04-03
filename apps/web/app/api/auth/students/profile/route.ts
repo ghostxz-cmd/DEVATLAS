@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const supabaseUrl = getRequiredEnv("SUPABASE_URL");
 
     const existingByEmailResponse = await fetch(
-      `${supabaseUrl}/rest/v1/users?select=id,email&email=eq.${encodeURIComponent(payload.email)}&limit=1`,
+      `${supabaseUrl}/rest/v1/student_accounts?select=id,email&email=eq.${encodeURIComponent(payload.email)}&limit=1`,
       { headers: getSupabaseHeaders() },
     );
 
@@ -43,17 +43,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, created: false });
     }
 
-    const insertResponse = await fetch(`${supabaseUrl}/rest/v1/users`, {
+    const insertResponse = await fetch(`${supabaseUrl}/rest/v1/student_accounts`, {
       method: "POST",
       headers: {
         ...getSupabaseHeaders(),
         Prefer: "return=representation",
       },
       body: JSON.stringify({
-        supabase_auth_id: payload.supabaseAuthId,
+        auth_user_id: payload.supabaseAuthId,
         email: payload.email,
         full_name: payload.fullName,
-        role: "STUDENT",
         status: "PENDING_EMAIL_VERIFICATION",
       }),
     });

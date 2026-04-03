@@ -80,17 +80,22 @@ export async function POST(request: Request) {
     const email = normalizeEmail(payload.email);
     const fullName = payload.fullName.trim();
 
-    const existingUserResponse = await fetch(
-      `${supabaseUrl}/rest/v1/users?select=id,email&email=eq.${encodeURIComponent(email)}&limit=1`,
-      { headers: getSupabaseHeaders() },
-    );
+    const [existingStudentResponse, existingInstructorResponse] = await Promise.all([
+      fetch(`${supabaseUrl}/rest/v1/student_accounts?select=id,email&email=eq.${encodeURIComponent(email)}&limit=1`, {
+        headers: getSupabaseHeaders(),
+      }),
+      fetch(`${supabaseUrl}/rest/v1/instructor_accounts?select=id,email&email=eq.${encodeURIComponent(email)}&limit=1`, {
+        headers: getSupabaseHeaders(),
+      }),
+    ]);
 
-    if (!existingUserResponse.ok) {
-      return NextResponse.json({ message: await existingUserResponse.text() }, { status: 502 });
+    if (!existingStudentResponse.ok || !existingInstructorResponse.ok) {
+      return NextResponse.json({ message: "Failed to validate existing account." }, { status: 502 });
     }
 
-    const existingUsers = (await existingUserResponse.json()) as Array<{ id: string; email: string }>;
-    if (existingUsers.length > 0) {
+    const existingStudents = (await existingStudentResponse.json()) as Array<{ id: string; email: string }>;
+    const existingInstructors = (await existingInstructorResponse.json()) as Array<{ id: string; email: string }>;
+    if (existingStudents.length > 0 || existingInstructors.length > 0) {
       return NextResponse.json({ message: "Contul există deja pentru acest email." }, { status: 409 });
     }
 

@@ -83,17 +83,6 @@ export default function StudentSignInPage() {
                 </div>
               </div>
 
-              <div className="mt-10 rounded-[1.6rem] border border-white/10 bg-[#050814]/95 p-5">
-                <div className="flex items-start gap-4">
-                  <div className="mt-1 h-3 w-3 rounded-full bg-cyan-300 shadow-[0_0_20px_rgba(34,211,238,0.7)]" />
-                  <div>
-                    <div className="text-sm font-semibold text-white">Revenire în cursuri</div>
-                    <p className="mt-1 text-sm leading-6 text-slate-400">
-                      După autentificare ajungi direct în zona de cursuri și progres.
-                    </p>
-                  </div>
-                </div>
-              </div>
 
               <div className="mt-8 flex flex-wrap gap-3">
                 <Link href="/auth/elevi/signup" className="inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-bold text-black transition hover:bg-cyan-300">
@@ -154,9 +143,6 @@ export default function StudentSignInPage() {
                   />
                   Ține-mă minte
                 </label>
-                <Link href="/auth/elevi/signup" className="font-medium text-cyan-300 hover:text-cyan-200">
-                  Creează cont
-                </Link>
               </div>
 
               <Link href="/auth/elevi/forgot-password" className="inline-block text-sm font-medium text-slate-300 transition hover:text-cyan-300">

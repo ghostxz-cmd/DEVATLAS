@@ -1,8 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type LayoutProps = {
@@ -11,7 +10,7 @@ type LayoutProps = {
 
 const navItems = [
   { href: "/dashboad-administrator", label: "Dashboard" },
-  { href: "/dashboad-administrator/people", label: "People" },
+  { href: "/dashboad-administrator/teachers", label: "Gestionare Profesori" },
   { href: "/dashboad-administrator/support", label: "Support" },
   { href: "/dashboad-administrator/courses", label: "Courses" },
   { href: "/dashboad-administrator/content", label: "Content" },
@@ -21,40 +20,12 @@ const navItems = [
 
 export default function AdministratorLayout({ children }: LayoutProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [checking, setChecking] = useState(true);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const supabase = getSupabaseBrowserClient();
-        const { data } = await supabase.auth.getSession();
-
-        if (!data.session) {
-          router.replace(`/auth/signin?next=${encodeURIComponent(pathname)}`);
-          return;
-        }
-      } finally {
-        setChecking(false);
-      }
-    };
-
-    void checkAuth();
-  }, [pathname, router]);
 
   const handleLogout = async () => {
     const supabase = getSupabaseBrowserClient();
     await supabase.auth.signOut();
-    router.replace("/auth/signin");
+    window.location.href = "/";
   };
-
-  if (checking) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f6f8fc]">
-        <p className="text-sm text-[#5f6368]">Checking admin session...</p>
-      </main>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#f3f4f8] text-[#202124]">

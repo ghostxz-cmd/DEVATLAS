@@ -104,17 +104,16 @@ async function createStudentAccount(input: { email: string; password: string; fu
     throw new Error("Supabase auth user creation returned an invalid payload.");
   }
 
-  const profileResponse = await fetch(`${supabaseUrl}/rest/v1/users`, {
+  const profileResponse = await fetch(`${supabaseUrl}/rest/v1/student_accounts`, {
     method: "POST",
     headers: {
       ...getSupabaseHeaders(),
       Prefer: "return=representation",
     },
     body: JSON.stringify({
-      supabase_auth_id: authUserId,
+      auth_user_id: authUserId,
       email: normalizeEmail(input.email),
       full_name: input.fullName,
-      role: "STUDENT",
       status: "ACTIVE",
     }),
   });
@@ -173,7 +172,7 @@ export async function POST(request: Request) {
     });
 
     if (accountResult.created) {
-      await fetch(`${supabaseUrl}/rest/v1/users?email=eq.${encodeURIComponent(email)}`, {
+      await fetch(`${supabaseUrl}/rest/v1/student_accounts?email=eq.${encodeURIComponent(email)}`, {
         method: "PATCH",
         headers: {
           ...getSupabaseHeaders(),
