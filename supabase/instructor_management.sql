@@ -374,3 +374,16 @@ before update on account_preferences
 for each row execute function account_preferences_set_updated_at();
 
 create index if not exists idx_account_preferences_role on account_preferences(role);
+
+do $$
+begin
+  if not exists (
+    select 1
+    from storage.buckets
+    where id = 'account-avatars'
+  ) then
+    insert into storage.buckets (id, name, public)
+    values ('account-avatars', 'account-avatars', true);
+  end if;
+end
+$$;
