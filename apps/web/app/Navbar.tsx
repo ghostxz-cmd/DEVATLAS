@@ -21,9 +21,19 @@ export default function Navbar() {
   const settingsPath = "/cont/setari";
   const profileInitial = (userName?.trim().charAt(0) || userEmail?.charAt(0) || "U").toUpperCase();
 
+  const getSafeSupabaseClient = () => {
+    try {
+      return getSupabaseBrowserClient();
+    } catch {
+      return null;
+    }
+  };
+
   const handleLogout = async () => {
-    const supabase = getSupabaseBrowserClient();
-    await supabase.auth.signOut();
+    const supabase = getSafeSupabaseClient();
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
     setIsUserDropdownOpen(false);
     setIsMenuOpen(false);
     router.push("/");
@@ -39,7 +49,13 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
+    const supabase = getSafeSupabaseClient();
+    if (!supabase) {
+      setUserEmail(null);
+      setUserName(null);
+      setUserRole("STUDENT");
+      return;
+    }
 
     const syncUser = async () => {
       const { data } = await supabase.auth.getUser();
