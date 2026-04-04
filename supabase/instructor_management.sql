@@ -345,3 +345,32 @@ create index if not exists idx_student_password_resets_email on student_password
 create index if not exists idx_student_password_resets_expires_at on student_password_resets(expires_at);
 create index if not exists idx_instructor_password_resets_email on instructor_password_resets(email);
 create index if not exists idx_instructor_password_resets_expires_at on instructor_password_resets(expires_at);
+
+create or replace function account_preferences_set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+create table if not exists account_preferences (
+  id uuid primary key default gen_random_uuid(),
+  auth_user_id uuid not null unique references auth.users(id) on delete cascade,
+  role text not null default 'STUDENT',
+  full_name text,
+  avatar_url text,
+  timezone text,
+  preferences jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists trg_account_preferences_set_updated_at on account_preferences;
+create trigger trg_account_preferences_set_updated_at
+before update on account_preferences
+for each row execute function account_preferences_set_updated_at();
+
+create index if not exists idx_account_preferences_role on account_preferences(role);

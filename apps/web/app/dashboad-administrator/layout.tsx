@@ -15,7 +15,7 @@ const navItems = [
   { href: "/dashboad-administrator/courses", label: "Courses" },
   { href: "/dashboad-administrator/content", label: "Content" },
   { href: "/dashboad-administrator/audit-logs", label: "Audit Logs" },
-  { href: "/dashboad-administrator/settings", label: "Settings" },
+  { href: "/cont/setari", label: "Settings" },
 ];
 
 export default function AdministratorLayout({ children }: LayoutProps) {
