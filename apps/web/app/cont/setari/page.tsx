@@ -166,6 +166,7 @@ export default function AccountSettingsPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { theme, setTheme } = useTheme();
+  const hasPublicSupabaseEnv = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   const [activeSection, setActiveSection] = useState<SectionKey>("general");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -197,8 +198,25 @@ export default function AccountSettingsPage() {
   const profileInitial = initialsFromName(settings.profile.fullName, settings.profile.email);
   const isLight = theme === "light";
 
+  const getSafeSupabaseClient = () => {
+    if (!hasPublicSupabaseEnv) {
+      return null;
+    }
+
+    try {
+      return getSupabaseBrowserClient();
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
-    const supabase = getSupabaseBrowserClient();
+    const supabase = getSafeSupabaseClient();
+    if (!supabase) {
+      setIsAuthenticated(false);
+      setIsLoading(false);
+      return;
+    }
 
     const loadSettings = async () => {
       const { data } = await supabase.auth.getSession();
@@ -274,7 +292,11 @@ export default function AccountSettingsPage() {
     setSuccessMessage(null);
 
     try {
-      const supabase = getSupabaseBrowserClient();
+      const supabase = getSafeSupabaseClient();
+      if (!supabase) {
+        throw new Error("Setările nu sunt disponibile momentan.");
+      }
+
       const { data } = await supabase.auth.getSession();
       const session = data.session;
 
@@ -313,7 +335,11 @@ export default function AccountSettingsPage() {
     setSuccessMessage(null);
 
     try {
-      const supabase = getSupabaseBrowserClient();
+      const supabase = getSafeSupabaseClient();
+      if (!supabase) {
+        throw new Error("Setările nu sunt disponibile momentan.");
+      }
+
       const { data } = await supabase.auth.getSession();
       const session = data.session;
 
@@ -350,8 +376,11 @@ export default function AccountSettingsPage() {
   };
 
   const handleLogout = async () => {
-    const supabase = getSupabaseBrowserClient();
-    await supabase.auth.signOut();
+    const supabase = getSafeSupabaseClient();
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
+    await fetch("/api/auth/students/signout", { method: "POST" }).catch(() => undefined);
     router.push("/");
   };
 
