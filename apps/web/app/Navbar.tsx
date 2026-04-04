@@ -29,11 +29,39 @@ export default function Navbar() {
     }
   };
 
+  const syncStudentSession = async () => {
+    try {
+      const response = await fetch("/api/auth/students/session", { cache: "no-store" });
+      if (!response.ok) {
+        setUserEmail(null);
+        setUserName(null);
+        setUserRole("STUDENT");
+        return;
+      }
+
+      const payload = (await response.json()) as {
+        student?: { email?: string; fullName?: string; role?: string };
+      };
+
+      setUserEmail(payload.student?.email ?? null);
+      setUserName(payload.student?.fullName ?? null);
+      setUserRole((payload.student?.role ?? "STUDENT").toUpperCase());
+    } catch {
+      setUserEmail(null);
+      setUserName(null);
+      setUserRole("STUDENT");
+    }
+  };
+
   const handleLogout = async () => {
     const supabase = getSafeSupabaseClient();
     if (supabase) {
       await supabase.auth.signOut();
     }
+    await fetch("/api/auth/students/signout", { method: "POST" }).catch(() => undefined);
+    setUserEmail(null);
+    setUserName(null);
+    setUserRole("STUDENT");
     setIsUserDropdownOpen(false);
     setIsMenuOpen(false);
     router.push("/");
@@ -51,18 +79,21 @@ export default function Navbar() {
   useEffect(() => {
     const supabase = getSafeSupabaseClient();
     if (!supabase) {
-      setUserEmail(null);
-      setUserName(null);
-      setUserRole("STUDENT");
+      void syncStudentSession();
       return;
     }
 
     const syncUser = async () => {
       const { data } = await supabase.auth.getUser();
       const user = data.user;
-      setUserEmail(user?.email ?? null);
-      setUserName((user?.user_metadata?.full_name as string | undefined) ?? null);
-      setUserRole(((user?.user_metadata?.role as string | undefined) ?? "STUDENT").toUpperCase());
+      if (user) {
+        setUserEmail(user.email ?? null);
+        setUserName((user.user_metadata?.full_name as string | undefined) ?? null);
+        setUserRole(((user.user_metadata?.role as string | undefined) ?? "STUDENT").toUpperCase());
+        return;
+      }
+
+      await syncStudentSession();
     };
 
     void syncUser();
@@ -71,9 +102,14 @@ export default function Navbar() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       const user = session?.user;
-      setUserEmail(user?.email ?? null);
-      setUserName((user?.user_metadata?.full_name as string | undefined) ?? null);
-      setUserRole(((user?.user_metadata?.role as string | undefined) ?? "STUDENT").toUpperCase());
+      if (user) {
+        setUserEmail(user.email ?? null);
+        setUserName((user.user_metadata?.full_name as string | undefined) ?? null);
+        setUserRole(((user.user_metadata?.role as string | undefined) ?? "STUDENT").toUpperCase());
+        return;
+      }
+
+      void syncStudentSession();
     });
 
     return () => {

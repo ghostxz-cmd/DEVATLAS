@@ -37,6 +37,11 @@ export default function StudentSignInPage() {
         throw new Error(payload?.message ?? "Nu am putut face autentificarea.");
       }
 
+      const sessionResponse = await fetch("/api/auth/students/session", { cache: "no-store" });
+      if (!sessionResponse.ok) {
+        throw new Error("Autentificarea nu a putut fi finalizată. Încearcă din nou.");
+      }
+
       router.replace("/cursuri");
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Nu am putut face autentificarea.");
