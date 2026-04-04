@@ -210,29 +210,40 @@ export default function AccountSettingsPage() {
     }
   };
 
-  useEffect(() => {
+  const getOptionalAuthHeaders = async () => {
     const supabase = getSafeSupabaseClient();
     if (!supabase) {
-      setIsAuthenticated(false);
-      setIsLoading(false);
-      return;
+      return {} as Record<string, string>;
     }
 
-    const loadSettings = async () => {
+    try {
       const { data } = await supabase.auth.getSession();
       const session = data.session;
-
       if (!session) {
+        return {} as Record<string, string>;
+      }
+
+      return {
+        Authorization: `Bearer ${session.access_token}`,
+      };
+    } catch {
+      return {} as Record<string, string>;
+    }
+  };
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      const authHeaders = await getOptionalAuthHeaders();
+
+      const response = await fetch("/api/account/settings", {
+        headers: authHeaders,
+      });
+
+      if (response.status === 401) {
         setIsAuthenticated(false);
         setIsLoading(false);
         return;
       }
-
-      const response = await fetch("/api/account/settings", {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
 
       if (!response.ok) {
         throw new Error(await response.text());
@@ -292,26 +303,14 @@ export default function AccountSettingsPage() {
     setSuccessMessage(null);
 
     try {
-      const supabase = getSafeSupabaseClient();
-      if (!supabase) {
-        throw new Error("Setările nu sunt disponibile momentan.");
-      }
-
-      const { data } = await supabase.auth.getSession();
-      const session = data.session;
-
-      if (!session) {
-        throw new Error("Trebuie să fii autentificat ca să încarci o poză.");
-      }
+      const authHeaders = await getOptionalAuthHeaders();
 
       const formData = new FormData();
       formData.append("file", file);
 
       const response = await fetch("/api/account/avatar", {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
+        headers: authHeaders,
         body: formData,
       });
 
@@ -335,23 +334,13 @@ export default function AccountSettingsPage() {
     setSuccessMessage(null);
 
     try {
-      const supabase = getSafeSupabaseClient();
-      if (!supabase) {
-        throw new Error("Setările nu sunt disponibile momentan.");
-      }
-
-      const { data } = await supabase.auth.getSession();
-      const session = data.session;
-
-      if (!session) {
-        throw new Error("Trebuie să fii autentificat ca să salvezi setările.");
-      }
+      const authHeaders = await getOptionalAuthHeaders();
 
       const response = await fetch("/api/account/settings", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
+          ...authHeaders,
         },
         body: JSON.stringify({
           fullName: settings.profile.fullName.trim(),
