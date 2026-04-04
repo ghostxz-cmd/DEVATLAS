@@ -33,7 +33,12 @@ export default function StudentSignInPage() {
 
       router.replace("/cursuri");
     } catch (authError) {
-      setError(authError instanceof Error ? authError.message : "Nu am putut face autentificarea.");
+      const errorMessage = authError instanceof Error ? authError.message : "Nu am putut face autentificarea.";
+      if (errorMessage.includes("NEXT_PUBLIC_SUPABASE_URL") || errorMessage.includes("NEXT_PUBLIC_SUPABASE_ANON_KEY")) {
+        setError("Autentificarea nu este disponibilă momentan: lipsesc variabilele publice Supabase pe hosting.");
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }

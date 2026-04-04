@@ -122,17 +122,34 @@ export default function StudentSignUpPage() {
         return;
       }
 
-      const supabase = getSupabaseBrowserClient();
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (signInError) {
-        throw signInError;
+        if (signInError) {
+          throw signInError;
+        }
+
+        router.push("/cursuri");
+      } catch (signInAfterCreateError) {
+        const signInErrorMessage = signInAfterCreateError instanceof Error ? signInAfterCreateError.message : "";
+
+        if (
+          signInErrorMessage.includes("NEXT_PUBLIC_SUPABASE_URL") ||
+          signInErrorMessage.includes("NEXT_PUBLIC_SUPABASE_ANON_KEY")
+        ) {
+          setSuccessMessage("Contul a fost creat. Autentifică-te din pagina de login după ce sunt setate variabilele de mediu publice.");
+        } else {
+          setSuccessMessage("Contul a fost creat. Te redirecționez către login pentru autentificare manuală.");
+        }
+
+        window.setTimeout(() => {
+          router.push("/auth/elevi/signin");
+        }, 1600);
       }
-
-      router.push("/cursuri");
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Nu am putut crea contul.");
     } finally {
