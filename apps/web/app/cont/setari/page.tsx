@@ -220,12 +220,18 @@ export default function AccountSettingsPage() {
         throw new Error(await response.text());
       }
 
-      const payload = (await response.json()) as SettingsResponse;
+      const payload = (await response.json()) as Partial<SettingsResponse>;
       const mergedPreferences = mergePreferences(payload.preferences);
       setSettings({
-        profile: payload.profile,
+        profile: {
+          fullName: payload.profile?.fullName ?? "",
+          email: payload.profile?.email ?? "",
+          avatarUrl: payload.profile?.avatarUrl ?? null,
+          timezone: payload.profile?.timezone ?? null,
+          role: payload.profile?.role ?? "STUDENT",
+        },
         preferences: mergedPreferences,
-        passwordHint: payload.profile.role === "ADMIN" ? "Autentificare admin" : "Schimbare parolă în siguranță",
+        passwordHint: payload.profile?.role === "ADMIN" ? "Autentificare admin" : "Schimbare parolă în siguranță",
       });
       setTheme(mergedPreferences.theme);
       setIsAuthenticated(true);
@@ -534,12 +540,12 @@ export default function AccountSettingsPage() {
                       <div className="grid gap-4 sm:grid-cols-2">
                         <label className="space-y-2 sm:col-span-2">
                           <span className={`text-xs font-semibold uppercase tracking-[0.2em] ${mutedText}`}>Nume complet</span>
-                          <input value={settings.profile.fullName} onChange={(event) => updateProfile("fullName", event.target.value)} className={inputClass} placeholder="Nume și prenume" />
+                          <input value={settings.profile.fullName ?? ""} onChange={(event) => updateProfile("fullName", event.target.value)} className={inputClass} placeholder="Nume și prenume" />
                         </label>
 
                         <label className="space-y-2 sm:col-span-2">
                           <span className={`text-xs font-semibold uppercase tracking-[0.2em] ${mutedText}`}>Email</span>
-                          <input value={settings.profile.email} readOnly className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none ${isLight ? "border-black/10 bg-slate-100 text-slate-500" : "border-white/10 bg-black/30 text-gray-300"}`} />
+                          <input value={settings.profile.email ?? ""} readOnly className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none ${isLight ? "border-black/10 bg-slate-100 text-slate-500" : "border-white/10 bg-black/30 text-gray-300"}`} />
                         </label>
 
                         <label className="space-y-2">

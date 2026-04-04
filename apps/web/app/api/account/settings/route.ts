@@ -208,8 +208,13 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({
-      profile,
-      role,
+      profile: {
+        fullName: profile.full_name ?? "",
+        email: profile.email ?? "",
+        avatarUrl: profile.avatar_url ?? null,
+        timezone: profile.timezone ?? null,
+        role,
+      },
       preferences: mergePreferences(preferencesRow?.preferences),
     });
   } catch (error) {
