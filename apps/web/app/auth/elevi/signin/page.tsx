@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import Navbar from "@/app/Navbar";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 export default function StudentSignInPage() {
   const router = useRouter();
@@ -21,24 +20,26 @@ export default function StudentSignInPage() {
     setError(null);
 
     try {
-      const supabase = getSupabaseBrowserClient();
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) {
-        throw signInError;
-      }
+      const response = await fetch("/api/auth/students/signin", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+          rememberMe,
+        }),
+      });
 
-      if (!rememberMe) {
-        await supabase.auth.setSession({ access_token: "", refresh_token: "" });
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+        throw new Error(payload?.message ?? "Nu am putut face autentificarea.");
       }
 
       router.replace("/cursuri");
     } catch (authError) {
-      const errorMessage = authError instanceof Error ? authError.message : "Nu am putut face autentificarea.";
-      if (errorMessage.includes("NEXT_PUBLIC_SUPABASE_URL") || errorMessage.includes("NEXT_PUBLIC_SUPABASE_ANON_KEY")) {
-        setError("Autentificarea nu este disponibilă momentan: lipsesc variabilele publice Supabase pe hosting.");
-      } else {
-        setError(errorMessage);
-      }
+      setError(authError instanceof Error ? authError.message : "Nu am putut face autentificarea.");
     } finally {
       setLoading(false);
     }

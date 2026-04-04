@@ -11,7 +11,6 @@ const requestResetSchema = z.object({
 type StudentProfile = {
   email: string;
   full_name: string;
-  auth_user_id: string | null;
 };
 
 function getRequiredEnv(name: string) {
@@ -85,7 +84,7 @@ export async function POST(request: Request) {
     const email = normalizeEmail(payload.email);
 
     const profileResponse = await fetch(
-      `${supabaseUrl}/rest/v1/student_accounts?select=email,full_name,auth_user_id&email=eq.${encodeURIComponent(email)}&limit=1`,
+      `${supabaseUrl}/rest/v1/student_accounts?select=email,full_name&email=eq.${encodeURIComponent(email)}&limit=1`,
       { headers: getSupabaseHeaders() },
     );
 
@@ -97,7 +96,7 @@ export async function POST(request: Request) {
     const profile = profiles[0] ?? null;
 
     // Return success even if account is missing to avoid account enumeration.
-    if (!profile || !profile.auth_user_id) {
+    if (!profile) {
       return NextResponse.json({ ok: true });
     }
 
@@ -117,7 +116,6 @@ export async function POST(request: Request) {
         attempts: 0,
         expires_at: expiresAt,
         used_at: null,
-        auth_user_id: profile.auth_user_id,
       }),
     });
 

@@ -25,6 +25,9 @@ create table if not exists student_password_resets (
   updated_at timestamptz not null default now()
 );
 
+alter table if exists student_password_resets
+  alter column auth_user_id drop not null;
+
 drop trigger if exists trg_student_password_resets_set_updated_at on student_password_resets;
 create trigger trg_student_password_resets_set_updated_at
 before update on student_password_resets

@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import Navbar from "@/app/Navbar";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 export default function StudentSignUpPage() {
   const router = useRouter();
@@ -123,29 +122,26 @@ export default function StudentSignUpPage() {
       }
 
       try {
-        const supabase = getSupabaseBrowserClient();
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+        const signInResponse = await fetch("/api/auth/students/signin", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            password,
+            rememberMe: true,
+          }),
         });
 
-        if (signInError) {
-          throw signInError;
+        if (!signInResponse.ok) {
+          const signInPayload = (await signInResponse.json().catch(() => null)) as { message?: string } | null;
+          throw new Error(signInPayload?.message ?? "Contul a fost creat, dar loginul automat a eșuat.");
         }
 
         router.push("/cursuri");
-      } catch (signInAfterCreateError) {
-        const signInErrorMessage = signInAfterCreateError instanceof Error ? signInAfterCreateError.message : "";
-
-        if (
-          signInErrorMessage.includes("NEXT_PUBLIC_SUPABASE_URL") ||
-          signInErrorMessage.includes("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-        ) {
-          setSuccessMessage("Contul a fost creat. Autentifică-te din pagina de login după ce sunt setate variabilele de mediu publice.");
-        } else {
-          setSuccessMessage("Contul a fost creat. Te redirecționez către login pentru autentificare manuală.");
-        }
-
+      } catch {
+        setSuccessMessage("Contul a fost creat. Te redirecționez către login pentru autentificare manuală.");
         window.setTimeout(() => {
           router.push("/auth/elevi/signin");
         }, 1600);

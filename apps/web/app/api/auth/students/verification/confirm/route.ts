@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { hashStudentPassword } from "@/lib/student-password";
 
 const confirmVerificationSchema = z.object({
   email: z.string().email().max(320),
@@ -61,49 +62,24 @@ async function getVerificationRow(email: string) {
 
 async function createStudentAccount(input: { email: string; password: string; fullName: string }) {
   const supabaseUrl = getRequiredEnv("SUPABASE_URL");
-  const serviceRoleKey = getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const existingResponse = await fetch(
+    `${supabaseUrl}/rest/v1/student_accounts?select=id,email&email=eq.${encodeURIComponent(normalizeEmail(input.email))}&limit=1`,
+    { headers: getSupabaseHeaders() },
+  );
 
-  const authResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
-    },
-    body: JSON.stringify({
-      email: normalizeEmail(input.email),
-      password: input.password,
-      email_confirm: true,
-      user_metadata: {
-        full_name: input.fullName,
-        role: "STUDENT",
-      },
-    }),
-  });
-
-  if (!authResponse.ok) {
-    const errorText = await authResponse.text();
-    const isEmailExists =
-      authResponse.status === 422 &&
-      (errorText.includes("email_exists") || errorText.toLowerCase().includes("already been registered"));
-
-    if (isEmailExists) {
-      return {
-        authUserId: null,
-        created: false,
-      };
-    }
-
-    throw new Error(errorText);
+  if (!existingResponse.ok) {
+    throw new Error(await existingResponse.text());
   }
 
-  const authUser = await authResponse.json();
-  const authUserId = (authUser?.id ?? authUser?.user?.id) as string | undefined;
-
-  if (!authUserId) {
-    throw new Error("Supabase auth user creation returned an invalid payload.");
+  const existingRows = (await existingResponse.json()) as Array<{ id: string }>;
+  if (existingRows.length > 0) {
+    return {
+      studentId: existingRows[0].id,
+      created: false,
+    };
   }
 
+  const passwordHash = hashStudentPassword(input.password);
   const profileResponse = await fetch(`${supabaseUrl}/rest/v1/student_accounts`, {
     method: "POST",
     headers: {
@@ -111,19 +87,26 @@ async function createStudentAccount(input: { email: string; password: string; fu
       Prefer: "return=representation",
     },
     body: JSON.stringify({
-      auth_user_id: authUserId,
       email: normalizeEmail(input.email),
       full_name: input.fullName,
+      password_hash: passwordHash,
       status: "ACTIVE",
     }),
   });
 
   if (!profileResponse.ok) {
-    throw new Error(await profileResponse.text());
+    const errorText = await profileResponse.text();
+    if (errorText.toLowerCase().includes("null value in column \"auth_user_id\"")) {
+      throw new Error("Schema mismatch: student_accounts.auth_user_id este NOT NULL. Ruleaza migrarea SQL pentru separarea elevilor de auth.users.");
+    }
+
+    throw new Error(errorText);
   }
 
+  const createdRows = (await profileResponse.json()) as Array<{ id: string }>;
+
   return {
-    authUserId,
+    studentId: createdRows[0]?.id ?? null,
     created: true,
   };
 }
@@ -193,7 +176,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      userId: accountResult.authUserId,
+      studentId: accountResult.studentId,
       accountAlreadyExists: !accountResult.created,
       message: accountResult.created
         ? "Contul a fost creat cu succes."

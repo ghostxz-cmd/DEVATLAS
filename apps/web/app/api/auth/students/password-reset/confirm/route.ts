@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { hashStudentPassword } from "@/lib/student-password";
 
 const confirmResetSchema = z.object({
   email: z.string().email().max(320),
@@ -11,7 +12,6 @@ const confirmResetSchema = z.object({
 type PasswordResetRow = {
   id: string;
   email: string;
-  auth_user_id: string;
   code_hash: string;
   attempts: number;
   expires_at: string;
@@ -63,7 +63,6 @@ export async function POST(request: Request) {
   try {
     const payload = confirmResetSchema.parse(await request.json());
     const supabaseUrl = getRequiredEnv("SUPABASE_URL");
-    const serviceRoleKey = getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");
     const email = normalizeEmail(payload.email);
     const resetRow = await getResetRow(email);
 
@@ -97,20 +96,36 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Codul introdus nu este corect." }, { status: 400 });
     }
 
-    const updatePasswordResponse = await fetch(`${supabaseUrl}/auth/v1/admin/users/${resetRow.auth_user_id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: serviceRoleKey,
-        Authorization: `Bearer ${serviceRoleKey}`,
+    const updatePasswordResponse = await fetch(
+      `${supabaseUrl}/rest/v1/student_accounts?email=eq.${encodeURIComponent(email)}`,
+      {
+        method: "PATCH",
+        headers: {
+          ...getSupabaseHeaders(),
+          Prefer: "return=minimal",
+        },
+        body: JSON.stringify({
+          password_hash: hashStudentPassword(payload.newPassword),
+        }),
       },
-      body: JSON.stringify({
-        password: payload.newPassword,
-      }),
-    });
+    );
 
     if (!updatePasswordResponse.ok) {
       return NextResponse.json({ message: await updatePasswordResponse.text() }, { status: 502 });
+    }
+
+    const profileCheckResponse = await fetch(
+      `${supabaseUrl}/rest/v1/student_accounts?select=id&email=eq.${encodeURIComponent(email)}&limit=1`,
+      { headers: getSupabaseHeaders() },
+    );
+
+    if (!profileCheckResponse.ok) {
+      return NextResponse.json({ message: await profileCheckResponse.text() }, { status: 502 });
+    }
+
+    const matchingProfiles = (await profileCheckResponse.json()) as Array<{ id: string }>;
+    if (matchingProfiles.length === 0) {
+      return NextResponse.json({ message: "Contul de elev nu există." }, { status: 404 });
     }
 
     await fetch(`${supabaseUrl}/rest/v1/student_password_resets?id=eq.${encodeURIComponent(resetRow.id)}`, {
