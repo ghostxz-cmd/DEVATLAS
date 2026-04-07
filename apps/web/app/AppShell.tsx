@@ -7,7 +7,7 @@ type AppShellProps = {
   children: React.ReactNode;
 };
 
-const dashboardPrefixes = ["/dashboad-administrator", "/dashboard-profesor"];
+const dashboardPrefixes = ["/dashboad-administrator", "/dashboard-profesor", "/dashboard-elev"];
 
 export default function AppShell({ children }: AppShellProps) {
   const pathname = usePathname();

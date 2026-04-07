@@ -42,7 +42,7 @@ export default function StudentSignInPage() {
         throw new Error("Autentificarea nu a putut fi finalizată. Încearcă din nou.");
       }
 
-      router.replace("/cursuri");
+      router.replace("/dashboard-elev");
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : "Nu am putut face autentificarea.");
     } finally {

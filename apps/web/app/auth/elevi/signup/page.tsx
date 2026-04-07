@@ -139,7 +139,7 @@ export default function StudentSignUpPage() {
           throw new Error(signInPayload?.message ?? "Contul a fost creat, dar loginul automat a eșuat.");
         }
 
-        router.push("/cursuri");
+        router.push("/dashboard-elev");
       } catch {
         setSuccessMessage("Contul a fost creat. Te redirecționez către login pentru autentificare manuală.");
         window.setTimeout(() => {
