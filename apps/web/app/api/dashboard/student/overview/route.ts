@@ -63,6 +63,7 @@ type ProgressRow = {
   status: string;
   last_activity_at: string | null;
   time_spent_seconds: number;
+  created_at: string;
 };
 
 type XpLedgerRow = {
@@ -208,7 +209,7 @@ export async function GET() {
         ? fetchRows<EnrollmentRow>(supabaseUrl, `enrollments?select=id,user_id,course_id,status,enrolled_at&user_id=eq.${encodeURIComponent(userId)}&order=enrolled_at.desc&limit=100`)
         : Promise.resolve([] as EnrollmentRow[]),
       userId
-        ? fetchRows<ProgressRow>(supabaseUrl, `progress?select=id,user_id,course_id,lesson_id,completion_percent,status,last_activity_at,time_spent_seconds&user_id=eq.${encodeURIComponent(userId)}&order=last_activity_at.desc.nullslast&limit=500`)
+        ? fetchRows<ProgressRow>(supabaseUrl, `progress?select=id,user_id,course_id,lesson_id,completion_percent,status,last_activity_at,time_spent_seconds,created_at&user_id=eq.${encodeURIComponent(userId)}&order=last_activity_at.desc.nullslast&limit=500`)
         : Promise.resolve([] as ProgressRow[]),
       fetchRows<CourseRow>(supabaseUrl, `courses?select=id,slug,title,level,category_id,thumbnail_url,estimated_mins,visibility,created_at&visibility=eq.PUBLISHED&order=created_at.desc&limit=200`),
       fetchRows<LessonRow>(supabaseUrl, `lessons?select=id,course_id,title,position,is_published,estimated_minutes&is_published=eq.true&order=course_id.asc,position.asc&limit=1000`),
