@@ -59,6 +59,46 @@ type FriendReportRow = {
   updated_at: string;
 };
 
+type AnyFriendRow = Record<string, unknown>;
+
+function getStringRowValue(row: AnyFriendRow, keys: string[]) {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === "string" && value.length > 0) {
+      return value;
+    }
+  }
+
+  return "";
+}
+
+function getNullableStringRowValue(row: AnyFriendRow, keys: string[]) {
+  for (const key of keys) {
+    const value = row[key];
+    if (typeof value === "string") {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function getFriendRequesterId(row: AnyFriendRow) {
+  return getStringRowValue(row, ["requester_student_account_id", "requester_user_id"]);
+}
+
+function getFriendAddresseeId(row: AnyFriendRow) {
+  return getStringRowValue(row, ["addressee_student_account_id", "addressee_user_id"]);
+}
+
+function getBlockerId(row: AnyFriendRow) {
+  return getStringRowValue(row, ["blocker_student_account_id", "blocker_user_id"]);
+}
+
+function getBlockedId(row: AnyFriendRow) {
+  return getStringRowValue(row, ["blocked_student_account_id", "blocked_user_id"]);
+}
+
 type FriendRelation = {
   id: string;
   status: FriendRequestRow["status"];
@@ -135,6 +175,14 @@ async function fetchRows<T>(supabaseUrl: string, path: string) {
   return (await response.json()) as T[];
 }
 
+async function fetchRowsAllowEmpty<T>(supabaseUrl: string, path: string) {
+  try {
+    return await fetchRows<T>(supabaseUrl, path);
+  } catch {
+    return [] as T[];
+  }
+}
+
 async function patchRows(supabaseUrl: string, path: string, payload: Record<string, unknown>) {
   const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
     method: "PATCH",
@@ -168,6 +216,15 @@ async function postRows(supabaseUrl: string, path: string, payload: Record<strin
   }
 
   return response;
+}
+
+function isMissingColumnError(error: unknown, columnNames: string[]) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+  return columnNames.some((column) => message.includes(column.toLowerCase()));
 }
 
 async function fetchStudentAccounts(supabaseUrl: string) {
@@ -214,8 +271,8 @@ function buildSearchResult(
   searchTerm: string | null,
   currentStudent: SocialStudent,
   allStudents: SocialStudent[],
-  allFriendRows: FriendRequestRow[],
-  allBlockRows: FriendBlockRow[],
+  allFriendRows: AnyFriendRow[],
+  allBlockRows: AnyFriendRow[],
 ): SearchResult {
   if (!searchTerm) {
     return null;
@@ -255,15 +312,15 @@ function buildSearchResult(
     | { type: "blocked_you"; reason: string | null } = { type: "none" };
 
   if (blockByYou) {
-    relationship = { type: "blocked_by_you", reason: blockByYou.reason };
+    relationship = { type: "blocked_by_you", reason: getNullableStringRowValue(blockByYou, ["reason"]) };
   } else if (blockedYou) {
-    relationship = { type: "blocked_you", reason: blockedYou.reason };
+    relationship = { type: "blocked_you", reason: getNullableStringRowValue(blockedYou, ["reason"]) };
   } else if (accepted) {
     relationship = { type: "friends" };
   } else if (incoming) {
-    relationship = { type: "incoming_request", requestId: incoming.id };
+    relationship = { type: "incoming_request", requestId: String(incoming.id ?? "") };
   } else if (outgoing) {
-    relationship = { type: "outgoing_request", requestId: outgoing.id };
+    relationship = { type: "outgoing_request", requestId: String(outgoing.id ?? "") };
   }
 
   return { account, relationship };
@@ -272,20 +329,20 @@ function buildSearchResult(
 async function buildOverview(supabaseUrl: string, currentStudent: SocialStudent, searchTerm: string | null) {
   const allStudents = (await fetchStudentAccounts(supabaseUrl)).map(normalizeStudentAccount);
 
-  const reports = await fetchRows<FriendReportRow>(
+  const reports = await fetchRowsAllowEmpty<FriendReportRow>(
     supabaseUrl,
-    `friend_reports?select=id,public_id,reporter_student_account_id,reported_student_account_id,reason,details,status,admin_notes,created_at,updated_at&or=(reporter_student_account_id.eq.${encodeURIComponent(currentStudent.id)},reported_student_account_id.eq.${encodeURIComponent(currentStudent.id)})&order=created_at.desc&limit=50`,
-  ).catch(() => [] as FriendReportRow[]);
+    `friend_reports?select=*&or=(reporter_student_account_id.eq.${encodeURIComponent(currentStudent.id)},reported_student_account_id.eq.${encodeURIComponent(currentStudent.id)})&order=created_at.desc&limit=50`,
+  );
 
-  const allFriendRows = await fetchRows<FriendRequestRow>(
+  const allFriendRows = await fetchRowsAllowEmpty<AnyFriendRow>(
     supabaseUrl,
-    `friend_requests?select=id,requester_student_account_id,addressee_student_account_id,status,message,responded_at,accepted_at,blocked_at,created_at,updated_at&or=(requester_student_account_id.eq.${encodeURIComponent(currentStudent.id)},addressee_student_account_id.eq.${encodeURIComponent(currentStudent.id)})&order=created_at.desc&limit=200`,
-  ).catch(() => [] as FriendRequestRow[]);
+    `friend_requests?select=*&or=(requester_student_account_id.eq.${encodeURIComponent(currentStudent.id)},addressee_student_account_id.eq.${encodeURIComponent(currentStudent.id)})&order=created_at.desc&limit=200`,
+  );
 
-  const allBlockRows = await fetchRows<FriendBlockRow>(
+  const allBlockRows = await fetchRowsAllowEmpty<AnyFriendRow>(
     supabaseUrl,
-    `friend_blocks?select=id,blocker_student_account_id,blocked_student_account_id,reason,created_at,updated_at&or=(blocker_student_account_id.eq.${encodeURIComponent(currentStudent.id)},blocked_student_account_id.eq.${encodeURIComponent(currentStudent.id)})&order=created_at.desc&limit=200`,
-  ).catch(() => [] as FriendBlockRow[]);
+    `friend_blocks?select=*&or=(blocker_student_account_id.eq.${encodeURIComponent(currentStudent.id)},blocked_student_account_id.eq.${encodeURIComponent(currentStudent.id)})&order=created_at.desc&limit=200`,
+  );
 
   const acceptedFriendIds = new Set<string>();
   const incomingIds = new Set<string>();
@@ -293,26 +350,30 @@ async function buildOverview(supabaseUrl: string, currentStudent: SocialStudent,
   const blockedIds = new Set<string>();
 
   for (const row of allFriendRows) {
-    if (row.status === "accepted") {
-      acceptedFriendIds.add(row.requester_student_account_id === currentStudent.id ? row.addressee_student_account_id : row.requester_student_account_id);
+    const status = String(row.status ?? "");
+    const requesterId = getFriendRequesterId(row);
+    const addresseeId = getFriendAddresseeId(row);
+
+    if (status === "accepted") {
+      acceptedFriendIds.add(requesterId === currentStudent.id ? addresseeId : requesterId);
     }
 
-    if (row.status === "pending") {
-      if (row.requester_student_account_id === currentStudent.id) {
-        outgoingIds.add(row.addressee_student_account_id);
-      } else if (row.addressee_student_account_id === currentStudent.id) {
-        incomingIds.add(row.requester_student_account_id);
+    if (status === "pending") {
+      if (requesterId === currentStudent.id) {
+        outgoingIds.add(addresseeId);
+      } else if (addresseeId === currentStudent.id) {
+        incomingIds.add(requesterId);
       }
     }
 
-    if (row.status === "blocked") {
-      blockedIds.add(row.requester_student_account_id === currentStudent.id ? row.addressee_student_account_id : row.requester_student_account_id);
+    if (status === "blocked") {
+      blockedIds.add(requesterId === currentStudent.id ? addresseeId : requesterId);
     }
   }
 
   for (const row of allBlockRows) {
-    if (row.blocker_student_account_id === currentStudent.id) {
-      blockedIds.add(row.blocked_student_account_id);
+    if (getBlockerId(row) === currentStudent.id) {
+      blockedIds.add(getBlockedId(row));
     }
   }
 
@@ -330,14 +391,16 @@ async function buildOverview(supabaseUrl: string, currentStudent: SocialStudent,
 
   const accountMap = new Map(relatedAccounts.map((account) => [account.id, account]));
 
-  const mapRelation = (row: FriendRequestRow): FriendRelation => {
-    const otherId = row.requester_student_account_id === currentStudent.id ? row.addressee_student_account_id : row.requester_student_account_id;
+  const mapRelation = (row: AnyFriendRow): FriendRelation => {
+    const requesterId = getFriendRequesterId(row);
+    const addresseeId = getFriendAddresseeId(row);
+    const otherId = requesterId === currentStudent.id ? addresseeId : requesterId;
     return {
-      id: row.id,
-      status: row.status,
-      message: row.message,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
+      id: String(row.id ?? ""),
+      status: String(row.status ?? "pending") as FriendRequestRow["status"],
+      message: getNullableStringRowValue(row, ["message"]),
+      createdAt: String(row.created_at ?? ""),
+      updatedAt: String(row.updated_at ?? ""),
       other: accountMap.get(otherId) ?? null,
     };
   };
@@ -365,16 +428,16 @@ async function buildOverview(supabaseUrl: string, currentStudent: SocialStudent,
     outgoingRequests: allFriendRows.filter((row) => row.status === "pending" && row.requester_student_account_id === currentStudent.id).map(mapRelation),
     blocked: [...blockedIds].map((id) => accountMap.get(id)).filter(Boolean),
     reports: reports.map((report) => ({
-      id: report.id,
-      publicId: report.public_id,
-      reason: report.reason,
-      details: report.details,
-      status: report.status,
-      adminNotes: report.admin_notes,
-      createdAt: report.created_at,
-      updatedAt: report.updated_at,
-      reporter: accountMap.get(report.reporter_student_account_id) ?? null,
-      reported: accountMap.get(report.reported_student_account_id) ?? null,
+      id: String(report.id ?? ""),
+      publicId: String(report.public_id ?? ""),
+      reason: String(report.reason ?? ""),
+      details: getNullableStringRowValue(report, ["details"]),
+      status: String(report.status ?? "open"),
+      adminNotes: getNullableStringRowValue(report, ["admin_notes", "adminNotes"]),
+      createdAt: String(report.created_at ?? ""),
+      updatedAt: String(report.updated_at ?? ""),
+      reporter: accountMap.get(String(report.reporter_student_account_id ?? "")) ?? null,
+      reported: accountMap.get(String(report.reported_student_account_id ?? "")) ?? null,
     })),
     searchResult,
     notices: [
@@ -435,6 +498,8 @@ export async function POST(request: Request) {
     const body = actionSchema.parse(await request.json());
     const allStudents = (await fetchStudentAccounts(supabaseUrl)).map(normalizeStudentAccount);
     const targetAccount = findStudentBySearchTerm(allStudents, body.targetPublicId);
+  const pairQuery = buildPairQuery(currentStudent.id, targetAccount?.id ?? "");
+  const blockQuery = buildBlockQuery(currentStudent.id, targetAccount?.id ?? "");
 
     if (!targetAccount) {
       return NextResponse.json({ message: "Contul căutat nu există." }, { status: 404 });
@@ -456,18 +521,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, report: report[0] ?? null });
     }
 
-    const pairRows = await fetchRows<FriendRequestRow>(
+    const pairRows = await fetchRowsAllowEmpty<AnyFriendRow>(
       supabaseUrl,
-      `friend_requests?select=id,requester_student_account_id,addressee_student_account_id,status,message,responded_at,accepted_at,blocked_at,created_at,updated_at&${buildPairQuery(currentStudent.id, targetAccount.id)}&limit=10`,
-    ).catch(() => [] as FriendRequestRow[]);
+      `friend_requests?select=*&${pairQuery}&limit=10`,
+    );
 
-    const blockRows = await fetchRows<FriendBlockRow>(
+    const blockRows = await fetchRowsAllowEmpty<AnyFriendRow>(
       supabaseUrl,
-      `friend_blocks?select=id,blocker_student_account_id,blocked_student_account_id,reason,created_at,updated_at&${buildBlockQuery(currentStudent.id, targetAccount.id)}&limit=10`,
-    ).catch(() => [] as FriendBlockRow[]);
+      `friend_blocks?select=*&${blockQuery}&limit=10`,
+    );
 
-    const blockedByYou = blockRows.find((row) => row.blocker_student_account_id === currentStudent.id);
-    const blockedYou = blockRows.find((row) => row.blocked_student_account_id === currentStudent.id);
+    const blockedByYou = blockRows.find((row) => getBlockerId(row) === currentStudent.id);
+    const blockedYou = blockRows.find((row) => getBlockedId(row) === currentStudent.id);
 
     if (blockedByYou || blockedYou) {
       return NextResponse.json({
@@ -476,17 +541,17 @@ export async function POST(request: Request) {
       }, { status: 409 });
     }
 
-    const accepted = pairRows.find((row) => row.status === "accepted");
+    const accepted = pairRows.find((row) => String(row.status ?? "") === "accepted");
     if (accepted) {
       return NextResponse.json({ ok: true, relationship: "friends" });
     }
 
-    const incoming = pairRows.find((row) => row.status === "pending" && row.requester_student_account_id === targetAccount.id && row.addressee_student_account_id === currentStudent.id);
-    const outgoing = pairRows.find((row) => row.status === "pending" && row.requester_student_account_id === currentStudent.id && row.addressee_student_account_id === targetAccount.id);
+    const incoming = pairRows.find((row) => String(row.status ?? "") === "pending" && getFriendRequesterId(row) === targetAccount.id && getFriendAddresseeId(row) === currentStudent.id);
+    const outgoing = pairRows.find((row) => String(row.status ?? "") === "pending" && getFriendRequesterId(row) === currentStudent.id && getFriendAddresseeId(row) === targetAccount.id);
 
     if (body.action === "request") {
       if (incoming) {
-        await patchRows(supabaseUrl, `friend_requests?id=eq.${encodeURIComponent(incoming.id)}`, {
+        await patchRows(supabaseUrl, `friend_requests?id=eq.${encodeURIComponent(String(incoming.id))}`, {
           status: "accepted",
           accepted_at: new Date().toISOString(),
           responded_at: new Date().toISOString(),
@@ -499,12 +564,54 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: true, relationship: "outgoing_request" });
       }
 
-      const insertResponse = await postRows(supabaseUrl, "friend_requests", {
+      const reusable = pairRows.find((row) => ["rejected", "canceled", "blocked"].includes(String(row.status ?? "")));
+      if (reusable) {
+        await patchRows(supabaseUrl, `friend_requests?id=eq.${encodeURIComponent(String(reusable.id))}`, {
+          requester_student_account_id: currentStudent.id,
+          addressee_student_account_id: targetAccount.id,
+          status: "pending",
+          message: null,
+          responded_at: null,
+          accepted_at: null,
+          blocked_at: null,
+        });
+
+        return NextResponse.json({ ok: true, relationship: "outgoing_request", request: { id: reusable.id } });
+      }
+
+      const insertPayload = {
         requester_student_account_id: currentStudent.id,
         addressee_student_account_id: targetAccount.id,
         status: "pending",
         message: null,
+      };
+
+      const insertResponse = await postRows(supabaseUrl, "friend_requests", insertPayload).catch(async (error) => {
+        if (isMissingColumnError(error, ["requester_student_account_id", "addressee_student_account_id"])) {
+          return postRows(supabaseUrl, "friend_requests", {
+            requester_user_id: currentStudent.id,
+            addressee_user_id: targetAccount.id,
+            status: "pending",
+            message: null,
+          }).catch((legacyError) => {
+            if (isMissingColumnError(legacyError, ["requester_user_id", "addressee_user_id"])) {
+              return null;
+            }
+
+            throw legacyError;
+          });
+        }
+
+        if (error instanceof Error && (error as Error & { status?: number }).status === 409) {
+          return null;
+        }
+
+        throw error;
       });
+
+      if (!insertResponse) {
+        return NextResponse.json({ ok: true, relationship: "outgoing_request" });
+      }
 
       const created = (await insertResponse.json()) as FriendRequestRow[];
       return NextResponse.json({ ok: true, relationship: "outgoing_request", request: created[0] ?? null });
@@ -516,14 +623,29 @@ export async function POST(request: Request) {
         blocked_student_account_id: targetAccount.id,
         reason: body.reason?.trim() || null,
       }).catch(async (error) => {
+        if (isMissingColumnError(error, ["blocker_student_account_id", "blocked_student_account_id"])) {
+          return postRows(supabaseUrl, "friend_blocks", {
+            blocker_user_id: currentStudent.id,
+            blocked_user_id: targetAccount.id,
+            reason: body.reason?.trim() || null,
+          }).catch((legacyError) => {
+            if (isMissingColumnError(legacyError, ["blocker_user_id", "blocked_user_id"])) {
+              return null;
+            }
+
+            throw legacyError;
+          });
+        }
+
         if (error instanceof Error && (error as Error & { status?: number }).status === 409) {
           return null;
         }
+
         throw error;
       });
 
       if (pairRows.length > 0) {
-        await patchRows(supabaseUrl, `friend_requests?${buildPairQuery(currentStudent.id, targetAccount.id)}`, {
+        await patchRows(supabaseUrl, `friend_requests?${pairQuery}`, {
           status: "blocked",
           blocked_at: new Date().toISOString(),
           responded_at: new Date().toISOString(),

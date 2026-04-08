@@ -20,6 +20,7 @@ type StudentRow = {
   email: string;
   full_name: string;
   password_hash: string | null;
+  auth_user_id: string | null;
   status: string;
 };
 
@@ -49,6 +50,40 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+async function verifyWithSupabaseAuth(input: { supabaseUrl: string; email: string; password: string; authUserId: string | null }) {
+  const anonKey = process.env.SUPABASE_ANON_KEY;
+  if (!anonKey) {
+    return false;
+  }
+
+  const response = await fetch(`${input.supabaseUrl}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: anonKey,
+    },
+    body: JSON.stringify({
+      email: input.email,
+      password: input.password,
+    }),
+  });
+
+  if (!response.ok) {
+    return false;
+  }
+
+  const payload = (await response.json()) as { user?: { id?: string } };
+  if (!payload.user?.id) {
+    return false;
+  }
+
+  if (input.authUserId && payload.user.id !== input.authUserId) {
+    return false;
+  }
+
+  return true;
+}
+
 export async function POST(request: Request) {
   try {
     const payload = signInSchema.parse(await request.json());
@@ -56,7 +91,7 @@ export async function POST(request: Request) {
     const supabaseUrl = getRequiredEnv("SUPABASE_URL");
 
     const studentResponse = await fetch(
-      `${supabaseUrl}/rest/v1/student_accounts?select=id,email,full_name,password_hash,status&email=eq.${encodeURIComponent(email)}&limit=1`,
+      `${supabaseUrl}/rest/v1/student_accounts?select=id,email,full_name,password_hash,auth_user_id,status&email=eq.${encodeURIComponent(email)}&limit=1`,
       { headers: getSupabaseHeaders() },
     );
 
@@ -71,7 +106,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Email sau parolă invalidă." }, { status: 401 });
     }
 
-    if (!student.password_hash || !verifyStudentPassword(payload.password, student.password_hash)) {
+    let isPasswordValid = Boolean(student.password_hash && verifyStudentPassword(payload.password, student.password_hash));
+
+    if (!isPasswordValid && !student.password_hash) {
+      isPasswordValid = await verifyWithSupabaseAuth({
+        supabaseUrl,
+        email,
+        password: payload.password,
+        authUserId: student.auth_user_id,
+      });
+    }
+
+    if (!isPasswordValid) {
       return NextResponse.json({ message: "Email sau parolă invalidă." }, { status: 401 });
     }
 
@@ -79,7 +125,7 @@ export async function POST(request: Request) {
     const hasTwoFactor = Boolean((security as StudentSecurityRow | null)?.totp_enabled && (security as StudentSecurityRow | null)?.totp_secret);
 
     // Opportunistic migration: if hash format is legacy/invalid, rewrite a strong hash after successful login.
-    if (!student.password_hash.startsWith("scrypt:")) {
+    if (!student.password_hash || !student.password_hash.startsWith("scrypt:")) {
       await fetch(`${supabaseUrl}/rest/v1/student_accounts?id=eq.${encodeURIComponent(student.id)}`, {
         method: "PATCH",
         headers: {
