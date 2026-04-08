@@ -12,6 +12,7 @@ const navItems = [
   { href: "/dashboad-administrator", label: "Dashboard" },
   { href: "/dashboad-administrator/teachers", label: "Gestionare Profesori" },
   { href: "/dashboad-administrator/support", label: "Support" },
+  { href: "/dashboad-administrator/social-reports", label: "Social Reports" },
   { href: "/dashboad-administrator/courses", label: "Courses" },
   { href: "/dashboad-administrator/content", label: "Content" },
   { href: "/dashboad-administrator/audit-logs", label: "Audit Logs" },

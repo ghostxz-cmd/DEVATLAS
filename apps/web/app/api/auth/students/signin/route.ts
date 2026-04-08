@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { hashStudentPassword, verifyStudentPassword } from "@/lib/student-password";
-import { createStudentSessionToken, getStudentSessionCookieName } from "@/lib/student-session";
+import {
+  createStudentLoginChallengeToken,
+  createStudentSessionToken,
+  getStudentLoginChallengeCookieName,
+  getStudentSessionCookieName,
+} from "@/lib/student-session";
+import { ensureStudentSecuritySettings, fetchStudentSecuritySettings } from "@/lib/student-security-store";
 
 const signInSchema = z.object({
   email: z.string().email().max(320),
@@ -15,6 +21,11 @@ type StudentRow = {
   full_name: string;
   password_hash: string | null;
   status: string;
+};
+
+type StudentSecurityRow = {
+  totp_enabled: boolean;
+  totp_secret: string | null;
 };
 
 function getRequiredEnv(name: string) {
@@ -64,6 +75,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Email sau parolă invalidă." }, { status: 401 });
     }
 
+    const security = (await ensureStudentSecuritySettings(supabaseUrl, student.id)) ?? (await fetchStudentSecuritySettings(supabaseUrl, student.id));
+    const hasTwoFactor = Boolean((security as StudentSecurityRow | null)?.totp_enabled && (security as StudentSecurityRow | null)?.totp_secret);
+
     // Opportunistic migration: if hash format is legacy/invalid, rewrite a strong hash after successful login.
     if (!student.password_hash.startsWith("scrypt:")) {
       await fetch(`${supabaseUrl}/rest/v1/student_accounts?id=eq.${encodeURIComponent(student.id)}`, {
@@ -76,6 +90,32 @@ export async function POST(request: Request) {
           password_hash: hashStudentPassword(payload.password),
         }),
       });
+    }
+
+    if (hasTwoFactor) {
+      const challengeToken = createStudentLoginChallengeToken({ studentId: student.id, ttlSeconds: 60 * 10 });
+      const response = NextResponse.json({
+        ok: true,
+        requiresTwoFactor: true,
+        challengeToken,
+        student: {
+          id: student.id,
+          email: student.email,
+          fullName: student.full_name,
+        },
+      });
+
+      response.cookies.set({
+        name: getStudentLoginChallengeCookieName(),
+        value: challengeToken,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 60 * 10,
+      });
+
+      return response;
     }
 
     const response = NextResponse.json({

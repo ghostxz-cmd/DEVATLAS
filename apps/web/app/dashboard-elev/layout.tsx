@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -55,7 +56,9 @@ export default function StudentDashboardLayout({ children }: { children: React.R
       <div className="relative w-full px-0 pb-8 pt-0">
         <header className="fixed left-0 top-0 z-50 w-full border-b border-[#e5e7eb] bg-white/95 px-3 py-3 shadow-[0_8px_30px_rgba(15,23,42,0.04)] backdrop-blur-sm sm:px-4 lg:px-6">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#0f172a] text-sm font-black text-white shadow-sm">✹</div>
+            <Link href="/" className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[#dbe2f0] bg-white shadow-sm">
+              <Image src="/logos/Alb.png" alt="DevAtlas" width={40} height={40} className="h-full w-full object-contain p-1" />
+            </Link>
 
             <nav className="flex flex-wrap items-center gap-2">
               {navItems.map((item) => {

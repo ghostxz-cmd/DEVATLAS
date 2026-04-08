@@ -528,6 +528,42 @@ export function generateStudentPasswordResetEmail(context: StudentPasswordResetE
   return generateBase("Resetare parolă - DevAtlas", content);
 }
 
+export function generateStudentPinResetEmail(context: {
+  fullName: string;
+  email: string;
+  resetCode: string;
+  expiresInMinutes: number;
+}) {
+  const { fullName, email, resetCode, expiresInMinutes } = context;
+
+  const content = `
+    ${buildHeader("Resetare PIN")}
+    <div class="body">
+      <p>Salut ${fullName},</p>
+      <p>Am primit o solicitare de resetare PIN pentru contul ${email}. Introdu codul de mai jos în pagina Contul meu ca să setezi un PIN nou.</p>
+
+      <div class="info-card">
+        <div class="info-row"><span class="label">Email</span><span class="value">${email}</span></div>
+        <div class="info-row"><span class="label">Tip cerere</span><span class="value"><span class="chip" style="${getStatusStyle("in_progress")}">resetare PIN</span></span></div>
+        <div class="info-row"><span class="label">Expiră</span><span class="value">în ${expiresInMinutes} minute</span></div>
+      </div>
+
+      <p class="section-title">Cod resetare PIN</p>
+      <div class="verification-code">${resetCode}</div>
+      <div class="verification-note">Dacă nu ai cerut resetarea PIN-ului, ignoră acest email. Codul este valabil o singură dată.</div>
+
+      <p>După validare, vei putea seta un PIN nou fără PIN-ul vechi.</p>
+    </div>
+    <div class="footer">
+      <p><strong>DevAtlas Team</strong></p>
+      <p>support@devatlas.website • www.devatlas.website</p>
+      <p>© 2026 DevAtlas. Toate drepturile rezervate.</p>
+    </div>
+  `;
+
+  return generateBase("Resetare PIN - DevAtlas", content);
+}
+
 export function generateChatInviteEmail(context: EmailTemplateContext): string {
   const { customerName, viewTicketUrl } = context;
 

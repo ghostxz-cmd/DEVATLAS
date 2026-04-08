@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { verifySecurityUnlockToken } from "@/lib/account-security";
 import { getStudentSessionCookieName, verifyStudentSessionToken } from "@/lib/student-session";
+import { ensureStudentSecuritySettings, fetchStudentSecuritySettings } from "@/lib/student-security-store";
 
 type AuthUserResponse = {
   id: string;
@@ -157,6 +159,10 @@ function getCookieValue(request: Request, name: string) {
   }
 
   return null;
+}
+
+function getSecurityUnlockToken(request: Request) {
+  return getCookieValue(request, "devatlas_student_security_unlock");
 }
 
 async function getStudentFromCookieSession(request: Request) {

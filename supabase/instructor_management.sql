@@ -3,6 +3,15 @@
 
 create extension if not exists pgcrypto;
 
+create or replace function generate_student_public_id()
+returns text
+language plpgsql
+as $$
+begin
+  return 'DAT-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8));
+end;
+$$;
+
 create or replace function role_accounts_set_updated_at()
 returns trigger
 language plpgsql
@@ -18,6 +27,7 @@ create table if not exists student_accounts (
   auth_user_id uuid not null unique references auth.users(id) on delete cascade,
   email text not null unique,
   full_name text not null,
+  public_id text unique,
   status text not null default 'ACTIVE',
   avatar_url text,
   timezone text,
@@ -25,11 +35,30 @@ create table if not exists student_accounts (
   updated_at timestamptz not null default now()
 );
 
+update student_accounts
+set public_id = coalesce(public_id, generate_student_public_id())
+where public_id is null;
+
 alter table if exists student_accounts
   alter column auth_user_id drop not null;
 
 alter table if exists student_accounts
   add column if not exists password_hash text;
+
+alter table if exists student_accounts
+  add column if not exists public_id text;
+
+update student_accounts
+set public_id = coalesce(public_id, generate_student_public_id())
+where public_id is null;
+
+alter table if exists student_accounts
+  alter column public_id set default generate_student_public_id();
+
+alter table if exists student_accounts
+  alter column public_id set not null;
+
+create unique index if not exists idx_student_accounts_public_id on student_accounts(public_id);
 
 drop trigger if exists trg_student_accounts_set_updated_at on student_accounts;
 create trigger trg_student_accounts_set_updated_at

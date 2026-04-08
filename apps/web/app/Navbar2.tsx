@@ -128,11 +128,11 @@ export default function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center group flex-shrink-0">
             <Image
-              src="/logos/negru.fara.bg.png"
+              src="/logos/Negru.png"
               alt="DevAtlas Logo"
               width={120}
               height={32}
-              className="brightness-0 invert transition-all group-hover:scale-105 w-20 sm:w-28 lg:w-40 h-auto"
+              className="transition-all group-hover:scale-105 w-20 sm:w-28 lg:w-40 h-auto"
             />
           </Link>
 
