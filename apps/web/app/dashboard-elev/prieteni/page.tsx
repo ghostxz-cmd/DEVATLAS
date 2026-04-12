@@ -246,16 +246,16 @@ export default function StudentDashboardFriendsPage() {
   const closeSearchModal = () => setActiveSearch(null);
 
   return (
-    <section className="space-y-5 text-[#111827]">
+    <section className="space-y-5 text-white">
       <div className="flex flex-wrap items-start justify-between gap-4 px-1 py-1">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#64748b]">Community</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-300">Community</p>
           <h1 className="mt-1 text-3xl font-bold tracking-tight sm:text-[38px]">Prieteni</h1>
-          <p className="mt-2 max-w-2xl text-sm text-[#64748b]">
+          <p className="mt-2 max-w-2xl text-sm text-gray-300">
             Caută un cont după ID, trimite cereri, blochează sau raportează din popup-uri rapide.
           </p>
         </div>
-        <div className="rounded-full border border-[#d5daea] bg-[#f8faff] px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-[#475569]">
+        <div className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-gray-300">
           {loading ? "syncing" : "active"}
         </div>
       </div>
@@ -265,28 +265,28 @@ export default function StudentDashboardFriendsPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((item) => (
-          <article key={item.label} className="rounded-3xl border border-[#e5e7eb] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#64748b]">{item.label}</p>
-            <div className="mt-2 text-[30px] font-bold leading-none text-[#0f172a]">{item.value}</div>
+          <article key={item.label} className="rounded-3xl border border-white/10 bg-[#030712] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-300">{item.label}</p>
+            <div className="mt-2 text-[30px] font-bold leading-none text-white">{item.value}</div>
           </article>
         ))}
       </div>
 
-      <article className="rounded-3xl border border-[#e5e7eb] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)] sm:p-5">
+      <article className="rounded-3xl border border-white/10 bg-[#030712] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)] sm:p-5">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold text-[#111827]">Căutare cont</h2>
-            <p className="mt-1 text-sm text-[#64748b]">ID-ul public este afișat pe profil și poate fi căutat direct aici.</p>
+            <h2 className="text-sm font-semibold text-white">Căutare cont</h2>
+            <p className="mt-1 text-sm text-gray-300">ID-ul public este afișat pe profil și poate fi căutat direct aici.</p>
           </div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-[#d5daea] bg-[#f8faff] px-3 py-1 text-xs text-[#475569]">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-gray-300">
             <span className="font-semibold">ID-ul tău:</span>
             <span>{data?.profile.publicId ?? "--"}</span>
           </div>
         </div>
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-          <div className="flex h-12 flex-1 items-center rounded-2xl border border-[#d5daea] bg-[#f8fafc] px-4">
-            <svg className="h-4 w-4 text-[#64748b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="flex h-12 flex-1 items-center rounded-2xl border border-white/10 bg-white/5 px-4">
+            <svg className="h-4 w-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="m21 21-4.35-4.35M10 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16Z" />
             </svg>
             <input
@@ -313,7 +313,7 @@ export default function StudentDashboardFriendsPage() {
 
         <div className="mt-4 grid gap-2 sm:grid-cols-3">
           {(data?.notices ?? []).map((notice) => (
-            <div key={notice} className="rounded-2xl border border-dashed border-[#d5daea] bg-[#f8fafc] p-3 text-sm text-[#64748b]">
+            <div key={notice} className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-3 text-sm text-gray-300">
               {notice}
             </div>
           ))}
@@ -321,27 +321,27 @@ export default function StudentDashboardFriendsPage() {
       </article>
 
       <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
-        <article className="rounded-3xl border border-[#e5e7eb] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)] sm:p-5">
+        <article className="rounded-3xl border border-white/10 bg-[#030712] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)] sm:p-5">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-[#111827]">Lista prieteni</h3>
-            <span className="text-xs text-[#64748b]">{data?.friends.length ?? 0} conturi</span>
+            <h3 className="text-sm font-semibold text-white">Lista prieteni</h3>
+            <span className="text-xs text-gray-300">{data?.friends.length ?? 0} conturi</span>
           </div>
 
           <div className="mt-4 space-y-3">
             {(data?.friends ?? []).length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-[#d5daea] bg-[#f8fafc] p-4 text-sm text-[#64748b]">
+              <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-4 text-sm text-gray-300">
                 Nu ai încă prieteni conectați.
               </div>
             ) : (
               data!.friends.map((friend) => (
-                <div key={friend.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[#e5e7eb] bg-[#f8fafc] p-3">
+                <div key={friend.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-3">
                   <div className="flex items-center gap-3">
                     <div className="grid h-11 w-11 place-items-center rounded-full bg-[#dbeafe] text-sm font-bold text-[#1d4ed8]">
                       {avatarFallback(friend.fullName)}
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-[#0f172a]">{friend.fullName}</p>
-                      <p className="text-xs text-[#64748b]">{friend.publicId} • {friend.email}</p>
+                      <p className="text-sm font-semibold text-white">{friend.fullName}</p>
+                      <p className="text-xs text-gray-300">{friend.publicId} • {friend.email}</p>
                     </div>
                   </div>
                   <span className="rounded-full bg-[#dcfce7] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#166534]">Friend</span>
@@ -351,25 +351,25 @@ export default function StudentDashboardFriendsPage() {
           </div>
         </article>
 
-        <article className="rounded-3xl border border-[#e5e7eb] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)] sm:p-5">
+        <article className="rounded-3xl border border-white/10 bg-[#030712] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)] sm:p-5">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-[#111827]">Cereri și blocări</h3>
-            <span className="text-xs text-[#64748b]">live</span>
+            <h3 className="text-sm font-semibold text-white">Cereri și blocări</h3>
+            <span className="text-xs text-gray-300">live</span>
           </div>
 
           <div className="mt-4 space-y-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#64748b]">Cereri primite</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-300">Cereri primite</p>
               <div className="mt-2 space-y-2">
                 {(data?.incomingRequests ?? []).length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[#d5daea] bg-[#f8fafc] p-3 text-sm text-[#64748b]">Nicio cerere primită.</div>
+                  <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-3 text-sm text-gray-300">Nicio cerere primită.</div>
                 ) : (
                   data!.incomingRequests.map((item) => (
-                    <div key={item.id} className="rounded-2xl border border-[#e5e7eb] bg-[#f8fafc] p-3">
+                    <div key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
                       <div className="flex items-center justify-between gap-2">
                         <div>
-                          <p className="text-sm font-semibold text-[#0f172a]">{item.other?.fullName ?? "Unknown"}</p>
-                          <p className="text-xs text-[#64748b]">{item.other?.publicId ?? "-"}</p>
+                          <p className="text-sm font-semibold text-white">{item.other?.fullName ?? "Unknown"}</p>
+                          <p className="text-xs text-gray-300">{item.other?.publicId ?? "-"}</p>
                         </div>
                         <button
                           type="button"
@@ -377,7 +377,7 @@ export default function StudentDashboardFriendsPage() {
                             setSearchValue(item.other?.publicId ?? "");
                             setActiveSearch(item.other ? { account: item.other, relationship: { type: "incoming_request", requestId: item.id } } : null);
                           }}
-                          className="rounded-xl border border-[#d5daea] px-3 py-1.5 text-xs font-semibold text-[#334155] transition hover:bg-white"
+                          className="rounded-xl border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-200 transition hover:bg-[#030712]"
                         >
                           Vezi
                         </button>
@@ -389,15 +389,15 @@ export default function StudentDashboardFriendsPage() {
             </div>
 
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#64748b]">Cereri trimise</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-300">Cereri trimise</p>
               <div className="mt-2 space-y-2">
                 {(data?.outgoingRequests ?? []).length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[#d5daea] bg-[#f8fafc] p-3 text-sm text-[#64748b]">Nicio cerere trimisă.</div>
+                  <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-3 text-sm text-gray-300">Nicio cerere trimisă.</div>
                 ) : (
                   data!.outgoingRequests.map((item) => (
-                    <div key={item.id} className="rounded-2xl border border-[#e5e7eb] bg-[#f8fafc] p-3">
-                      <p className="text-sm font-semibold text-[#0f172a]">{item.other?.fullName ?? "Unknown"}</p>
-                      <p className="text-xs text-[#64748b]">{item.other?.publicId ?? "-"} • trimisă la {formatDate(item.createdAt)}</p>
+                    <div key={item.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                      <p className="text-sm font-semibold text-white">{item.other?.fullName ?? "Unknown"}</p>
+                      <p className="text-xs text-gray-300">{item.other?.publicId ?? "-"} • trimisă la {formatDate(item.createdAt)}</p>
                     </div>
                   ))
                 )}
@@ -405,15 +405,15 @@ export default function StudentDashboardFriendsPage() {
             </div>
 
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#64748b]">Conturi blocate</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-300">Conturi blocate</p>
               <div className="mt-2 space-y-2">
                 {(data?.blocked ?? []).length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[#d5daea] bg-[#f8fafc] p-3 text-sm text-[#64748b]">Nu ai blocat niciun cont.</div>
+                  <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-3 text-sm text-gray-300">Nu ai blocat niciun cont.</div>
                 ) : (
                   data!.blocked.map((account) => (
-                    <div key={account.id} className="rounded-2xl border border-[#e5e7eb] bg-[#f8fafc] p-3">
-                      <p className="text-sm font-semibold text-[#0f172a]">{account.fullName}</p>
-                      <p className="text-xs text-[#64748b]">{account.publicId}</p>
+                    <div key={account.id} className="rounded-2xl border border-white/10 bg-white/5 p-3">
+                      <p className="text-sm font-semibold text-white">{account.fullName}</p>
+                      <p className="text-xs text-gray-300">{account.publicId}</p>
                     </div>
                   ))
                 )}
@@ -423,27 +423,27 @@ export default function StudentDashboardFriendsPage() {
         </article>
       </div>
 
-      <article className="rounded-3xl border border-[#e5e7eb] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)] sm:p-5">
+      <article className="rounded-3xl border border-white/10 bg-[#030712] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)] sm:p-5">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-[#111827]">Raportări trimise de tine</h3>
-          <span className="text-xs text-[#64748b]">{data?.reports.length ?? 0} rapoarte</span>
+          <h3 className="text-sm font-semibold text-white">Raportări trimise de tine</h3>
+          <span className="text-xs text-gray-300">{data?.reports.length ?? 0} rapoarte</span>
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
           {(data?.reports ?? []).length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-[#d5daea] bg-[#f8fafc] p-4 text-sm text-[#64748b]">
+            <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 p-4 text-sm text-gray-300">
               Nu ai trimis raportări încă.
             </div>
           ) : (
             data!.reports.map((report) => (
-              <div key={report.id} className="rounded-2xl border border-[#e5e7eb] bg-[#f8fafc] p-4">
+              <div key={report.id} className="rounded-2xl border border-white/10 bg-white/5 p-4">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold text-[#0f172a]">{report.reason}</p>
-                  <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#475569]">{report.status}</span>
+                  <p className="text-sm font-semibold text-white">{report.reason}</p>
+                  <span className="rounded-full bg-[#030712] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-300">{report.status}</span>
                 </div>
-                <p className="mt-2 text-xs text-[#64748b]">
+                <p className="mt-2 text-xs text-gray-300">
                   {report.reporter?.publicId ?? "-"} → {report.reported?.publicId ?? "-"}
                 </p>
-                <p className="mt-2 text-xs leading-6 text-[#475569]">{report.details || "Fără detalii suplimentare."}</p>
+                <p className="mt-2 text-xs leading-6 text-gray-300">{report.details || "Fără detalii suplimentare."}</p>
               </div>
             ))
           )}
@@ -452,17 +452,17 @@ export default function StudentDashboardFriendsPage() {
 
       {activeSearch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/60 px-4 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-2xl overflow-hidden rounded-[28px] bg-white shadow-[0_30px_80px_rgba(15,23,42,0.25)]">
-            <div className="flex items-start justify-between gap-4 border-b border-[#e5e7eb] bg-gradient-to-r from-[#f8fafc] to-white px-6 py-5">
+          <div className="w-full max-w-2xl overflow-hidden rounded-[28px] bg-[#030712] shadow-[0_30px_80px_rgba(15,23,42,0.25)]">
+            <div className="flex items-start justify-between gap-4 border-b border-white/10 bg-gradient-to-r from-[#f8fafc] to-transparent px-6 py-5">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#64748b]">Profile popup</p>
-                <h2 className="mt-1 text-2xl font-bold tracking-tight text-[#0f172a]">{activeSearch.account.fullName}</h2>
-                <p className="mt-1 text-sm text-[#64748b]">{activeSearch.account.publicId} • {activeSearch.account.email}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-300">Profile popup</p>
+                <h2 className="mt-1 text-2xl font-bold tracking-tight text-white">{activeSearch.account.fullName}</h2>
+                <p className="mt-1 text-sm text-gray-300">{activeSearch.account.publicId} • {activeSearch.account.email}</p>
               </div>
               <button
                 type="button"
                 onClick={closeSearchModal}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#e5e7eb] text-[#64748b] transition hover:bg-[#f8fafc]"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-gray-300 transition hover:bg-white/5"
                 aria-label="Close"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -473,32 +473,32 @@ export default function StudentDashboardFriendsPage() {
 
             <div className="grid gap-0 lg:grid-cols-[1fr_0.9fr]">
               <div className="space-y-4 px-6 py-6">
-                <div className="flex items-center gap-4 rounded-3xl border border-[#e5e7eb] bg-[#f8fafc] p-4">
+                <div className="flex items-center gap-4 rounded-3xl border border-white/10 bg-white/5 p-4">
                   <div className="grid h-16 w-16 place-items-center rounded-full bg-[#dbeafe] text-xl font-bold text-[#1d4ed8]">
                     {avatarFallback(activeSearch.account.fullName)}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-[#0f172a]">{activeSearch.account.status}</p>
-                    <p className="text-xs text-[#64748b]">Timezone: {activeSearch.account.timezone || "-"}</p>
-                    <p className="text-xs text-[#64748b]">Creat la {formatDate(activeSearch.account.createdAt)}</p>
+                    <p className="text-sm font-semibold text-white">{activeSearch.account.status}</p>
+                    <p className="text-xs text-gray-300">Timezone: {activeSearch.account.timezone || "-"}</p>
+                    <p className="text-xs text-gray-300">Creat la {formatDate(activeSearch.account.createdAt)}</p>
                   </div>
                 </div>
 
-                <div className="rounded-3xl border border-[#e5e7eb] p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#64748b]">Relație curentă</p>
-                  <p className="mt-2 text-sm text-[#334155]">{relationLabel(activeSearch.relationship)}</p>
+                <div className="rounded-3xl border border-white/10 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-300">Relație curentă</p>
+                  <p className="mt-2 text-sm text-gray-200">{relationLabel(activeSearch.relationship)}</p>
                 </div>
 
-                <div className="rounded-3xl border border-[#e5e7eb] p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#64748b]">Email</p>
-                  <p className="mt-2 text-sm text-[#0f172a]">{activeSearch.account.email}</p>
+                <div className="rounded-3xl border border-white/10 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-300">Email</p>
+                  <p className="mt-2 text-sm text-white">{activeSearch.account.email}</p>
                 </div>
               </div>
 
-              <div className="border-t border-[#e5e7eb] bg-[#f8fafc] px-6 py-6 lg:border-l lg:border-t-0">
+              <div className="border-t border-white/10 bg-white/5 px-6 py-6 lg:border-l lg:border-t-0">
                 <div className="space-y-3">
                   {activeSearch.relationship.type === "self" ? (
-                    <div className="rounded-3xl border border-dashed border-[#d5daea] bg-white p-4 text-sm text-[#64748b]">
+                    <div className="rounded-3xl border border-dashed border-white/10 bg-[#030712] p-4 text-sm text-gray-300">
                       Acesta este propriul tău cont.
                     </div>
                   ) : activeSearch.relationship.type === "blocked_you" ? (
@@ -519,14 +519,14 @@ export default function StudentDashboardFriendsPage() {
                         type="button"
                         disabled={saving || activeSearch.relationship.type === "blocked_by_you"}
                         onClick={() => setBlockTarget({ publicId: activeSearch.account.publicId, fullName: activeSearch.account.fullName })}
-                        className="w-full rounded-2xl border border-[#e5e7eb] bg-white px-4 py-3 text-sm font-semibold text-[#334155] transition hover:bg-[#f8fafc] disabled:cursor-not-allowed disabled:opacity-50"
+                        className="w-full rounded-2xl border border-white/10 bg-[#030712] px-4 py-3 text-sm font-semibold text-gray-200 transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Blochează contul
                       </button>
                       <button
                         type="button"
                         onClick={() => setReportDraft({ publicId: activeSearch.account.publicId, fullName: activeSearch.account.fullName })}
-                        className="w-full rounded-2xl border border-[#e5e7eb] bg-white px-4 py-3 text-sm font-semibold text-[#334155] transition hover:bg-[#f8fafc]"
+                        className="w-full rounded-2xl border border-white/10 bg-[#030712] px-4 py-3 text-sm font-semibold text-gray-200 transition hover:bg-white/5"
                       >
                         Raportează contul
                       </button>
@@ -534,7 +534,7 @@ export default function StudentDashboardFriendsPage() {
                   )}
                 </div>
 
-                <div className="mt-4 rounded-3xl border border-dashed border-[#d5daea] bg-white p-4 text-xs text-[#64748b]">
+                <div className="mt-4 rounded-3xl border border-dashed border-white/10 bg-[#030712] p-4 text-xs text-gray-300">
                   După fiecare acțiune, contul este refăcut din backend și popup-ul își schimbă starea.
                 </div>
               </div>
@@ -545,28 +545,28 @@ export default function StudentDashboardFriendsPage() {
 
       {reportDraft && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/60 px-4 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[28px] bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.25)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#64748b]">Report popup</p>
-            <h3 className="mt-2 text-2xl font-bold tracking-tight text-[#0f172a]">Raportează {reportDraft.fullName}</h3>
-            <p className="mt-1 text-sm text-[#64748b]">Raportul ajunge în zona de admin pentru revizuire separată.</p>
+          <div className="w-full max-w-lg rounded-[28px] bg-[#030712] p-6 shadow-[0_30px_80px_rgba(15,23,42,0.25)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-300">Report popup</p>
+            <h3 className="mt-2 text-2xl font-bold tracking-tight text-white">Raportează {reportDraft.fullName}</h3>
+            <p className="mt-1 text-sm text-gray-300">Raportul ajunge în zona de admin pentru revizuire separată.</p>
 
             <div className="mt-5 space-y-4">
               <div>
-                <label className="text-xs font-semibold uppercase tracking-[0.14em] text-[#64748b]">Motiv</label>
+                <label className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-300">Motiv</label>
                 <input
                   value={reportReason}
                   onChange={(event) => setReportReason(event.target.value)}
-                  className="mt-2 w-full rounded-2xl border border-[#e5e7eb] px-4 py-3 text-sm outline-none focus:border-[#1a73e8]"
+                  className="mt-2 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm outline-none focus:border-cyan-400"
                   placeholder="Motivul raportării"
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-[0.14em] text-[#64748b]">Detalii</label>
+                <label className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-300">Detalii</label>
                 <textarea
                   value={reportDetails}
                   onChange={(event) => setReportDetails(event.target.value)}
                   rows={5}
-                  className="mt-2 w-full rounded-2xl border border-[#e5e7eb] px-4 py-3 text-sm outline-none focus:border-[#1a73e8]"
+                  className="mt-2 w-full rounded-2xl border border-white/10 px-4 py-3 text-sm outline-none focus:border-cyan-400"
                   placeholder="Descrie pe scurt ce s-a întâmplat"
                 />
               </div>
@@ -576,7 +576,7 @@ export default function StudentDashboardFriendsPage() {
               <button
                 type="button"
                 onClick={() => setReportDraft(null)}
-                className="rounded-2xl border border-[#e5e7eb] px-4 py-2 text-sm font-semibold text-[#334155] transition hover:bg-[#f8fafc]"
+                className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 transition hover:bg-white/5"
               >
                 Renunță
               </button>
@@ -595,16 +595,16 @@ export default function StudentDashboardFriendsPage() {
 
       {blockTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#020617]/60 px-4 py-6 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-[28px] bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.25)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#64748b]">Block popup</p>
-            <h3 className="mt-2 text-2xl font-bold tracking-tight text-[#0f172a]">Blochezi {blockTarget.fullName}?</h3>
-            <p className="mt-1 text-sm text-[#64748b]">Contul va fi mutat în lista de blocări și cererile existente vor fi oprite.</p>
+          <div className="w-full max-w-lg rounded-[28px] bg-[#030712] p-6 shadow-[0_30px_80px_rgba(15,23,42,0.25)]">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-gray-300">Block popup</p>
+            <h3 className="mt-2 text-2xl font-bold tracking-tight text-white">Blochezi {blockTarget.fullName}?</h3>
+            <p className="mt-1 text-sm text-gray-300">Contul va fi mutat în lista de blocări și cererile existente vor fi oprite.</p>
 
             <div className="mt-6 flex flex-wrap justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setBlockTarget(null)}
-                className="rounded-2xl border border-[#e5e7eb] px-4 py-2 text-sm font-semibold text-[#334155] transition hover:bg-[#f8fafc]"
+                className="rounded-2xl border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 transition hover:bg-white/5"
               >
                 Anulează
               </button>

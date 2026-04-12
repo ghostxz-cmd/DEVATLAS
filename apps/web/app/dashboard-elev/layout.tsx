@@ -49,14 +49,14 @@ export default function StudentDashboardLayout({ children }: { children: React.R
   const initial = useMemo(() => (name.trim().charAt(0) || "E").toUpperCase(), [name]);
 
   return (
-    <main className="relative min-h-screen overflow-x-hidden bg-white text-[#0f172a]">
+    <main className="relative min-h-screen overflow-x-hidden bg-black text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.08),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(14,165,233,0.07),transparent_30%)]" />
-      <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-[#eff6ff] to-transparent opacity-60" />
+      <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-cyan-500/15 to-transparent opacity-60" />
 
       <div className="relative w-full px-0 pb-8 pt-0">
-        <header className="fixed left-0 top-0 z-50 w-full border-b border-[#e5e7eb] bg-white/95 px-3 py-3 shadow-[0_8px_30px_rgba(15,23,42,0.04)] backdrop-blur-sm sm:px-4 lg:px-6">
+        <header className="fixed left-0 top-0 z-50 w-full border-b border-white/10 bg-black/85 px-3 py-3 shadow-[0_8px_30px_rgba(6,182,212,0.08)] backdrop-blur-sm sm:px-4 lg:px-6">
           <div className="flex flex-wrap items-center gap-3">
-            <Link href="/" className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[#dbe2f0] bg-white shadow-sm">
+            <Link href="/" className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-black shadow-sm">
               <Image src="/logos/Alb.png" alt="DevAtlas" width={40} height={40} className="h-full w-full object-contain p-1" />
             </Link>
 
@@ -67,7 +67,7 @@ export default function StudentDashboardLayout({ children }: { children: React.R
                   <Link
                     key={item.href}
                     href={item.href}
-                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition sm:text-sm ${active ? "border-[#111827] bg-[#111827] text-white shadow-sm" : "border-[#d4d9e5] bg-white text-[#334155] hover:bg-[#f8fafc]"}`}
+                    className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition sm:text-sm ${active ? "border-cyan-300/60 bg-cyan-400 text-black shadow-[0_0_20px_rgba(34,211,238,0.25)]" : "border-white/20 bg-white/5 text-gray-200 hover:border-cyan-300/40 hover:bg-cyan-400/10"}`}
                   >
                     {item.label}
                   </Link>
@@ -75,20 +75,20 @@ export default function StudentDashboardLayout({ children }: { children: React.R
               })}
             </nav>
 
-            <div className="ml-auto flex min-w-[180px] items-center rounded-full border border-[#d4d9e5] bg-white px-3 py-1.5 shadow-[0_4px_16px_rgba(15,23,42,0.03)]">
+            <div className="ml-auto flex min-w-[180px] items-center rounded-full border border-white/10 bg-white/5 px-3 py-1.5 shadow-[0_4px_16px_rgba(6,182,212,0.08)]">
               <input
                 type="text"
                 placeholder="Search by category"
-                className="w-full bg-transparent text-xs text-[#334155] outline-none placeholder:text-[#94a3b8] sm:text-sm"
+                className="w-full bg-transparent text-xs text-gray-200 outline-none placeholder:text-gray-400 sm:text-sm"
               />
             </div>
 
-            <div className="flex items-center gap-2 rounded-full border border-[#d4d9e5] bg-white px-2 py-1.5 shadow-[0_4px_16px_rgba(15,23,42,0.03)]">
+            <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-2 py-1.5 shadow-[0_4px_16px_rgba(6,182,212,0.08)]">
               <div className="text-right">
-                <p className="max-w-[120px] truncate text-xs font-semibold text-[#0f172a]">{name}</p>
-                <p className="max-w-[120px] truncate text-[10px] text-[#64748b]">{email}</p>
+                <p className="max-w-[120px] truncate text-xs font-semibold text-white">{name}</p>
+                <p className="max-w-[120px] truncate text-[10px] text-gray-300">{email}</p>
               </div>
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#0f172a] text-xs font-black text-white">{initial}</div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-400 text-xs font-black text-black">{initial}</div>
             </div>
           </div>
         </header>

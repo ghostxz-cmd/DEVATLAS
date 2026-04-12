@@ -108,10 +108,10 @@ export default function StudentDashboardCoursesPage() {
 
   if (error) {
     return (
-      <section className="space-y-4 text-[#111827]">
-        <div className="rounded-3xl border border-[#e5e7eb] bg-white p-6 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
+      <section className="space-y-4 text-white">
+        <div className="rounded-3xl border border-white/10 bg-[#030712] p-6 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
           <h1 className="text-2xl font-bold tracking-tight">Cursuri</h1>
-          <p className="mt-2 text-sm text-[#64748b]">Nu am putut încărca lista de cursuri.</p>
+          <p className="mt-2 text-sm text-gray-300">Nu am putut încărca lista de cursuri.</p>
           <div className="mt-4 rounded-2xl border border-[#fca5a5] bg-[#fff1f2] p-4 text-sm text-[#991b1b]">{error}</div>
         </div>
       </section>
@@ -119,56 +119,56 @@ export default function StudentDashboardCoursesPage() {
   }
 
   return (
-    <section className="space-y-4 text-[#111827]">
+    <section className="space-y-4 text-white">
       <div className="flex flex-wrap items-center justify-between gap-3 px-1 py-1">
         <div>
           <h1 className="text-2xl font-bold tracking-tight sm:text-[34px]">Cursuri</h1>
-          <p className="mt-1 text-sm text-[#64748b]">Lista reală a cursurilor la care ești enrolled și progresul lor.</p>
+          <p className="mt-1 text-sm text-gray-300">Lista reală a cursurilor la care ești enrolled și progresul lor.</p>
         </div>
-        <div className="inline-flex items-center gap-2 rounded-full border border-[#d5daea] bg-[#f8faff] px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#475569]">
+        <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-gray-300">
           <span className={`h-2 w-2 rounded-full ${loading ? "bg-[#f59e0b]" : "bg-[#22c55e]"}`} />
           {loading ? "syncing" : "active"}
         </div>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-4">
-        <article className="rounded-3xl border border-[#e5e7eb] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#64748b]">Enrolled</p>
+        <article className="rounded-3xl border border-white/10 bg-[#030712] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-300">Enrolled</p>
           <div className="mt-2 text-[30px] font-bold leading-none">{data?.summary.enrolledCourses ?? 0}</div>
-          <p className="mt-1 text-xs text-[#64748b]">Cursuri asociate contului tău.</p>
+          <p className="mt-1 text-xs text-gray-300">Cursuri asociate contului tău.</p>
         </article>
 
-        <article className="rounded-3xl border border-[#e5e7eb] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#64748b]">Active</p>
+        <article className="rounded-3xl border border-white/10 bg-[#030712] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-300">Active</p>
           <div className="mt-2 text-[30px] font-bold leading-none">{data?.summary.activeCourses ?? 0}</div>
-          <p className="mt-1 text-xs text-[#64748b]">Cursuri în lucru acum.</p>
+          <p className="mt-1 text-xs text-gray-300">Cursuri în lucru acum.</p>
         </article>
 
-        <article className="rounded-3xl border border-[#e5e7eb] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#64748b]">Finalizate</p>
+        <article className="rounded-3xl border border-white/10 bg-[#030712] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-300">Finalizate</p>
           <div className="mt-2 text-[30px] font-bold leading-none">{data?.summary.completedCourses ?? 0}</div>
-          <p className="mt-1 text-xs text-[#64748b]">Cursuri duse la capăt.</p>
+          <p className="mt-1 text-xs text-gray-300">Cursuri duse la capăt.</p>
         </article>
 
-        <article className="rounded-3xl border border-[#e5e7eb] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#64748b]">Progres total</p>
+        <article className="rounded-3xl border border-white/10 bg-[#030712] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-300">Progres total</p>
           <div className="mt-2 text-[30px] font-bold leading-none">{data?.summary.courseCompletion ?? 0}%</div>
-          <p className="mt-1 text-xs text-[#64748b]">Media progresului real.</p>
+          <p className="mt-1 text-xs text-gray-300">Media progresului real.</p>
         </article>
       </div>
 
-      <div className="rounded-3xl border border-[#e5e7eb] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)] sm:p-5">
+      <div className="rounded-3xl border border-white/10 bg-[#030712] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)] sm:p-5">
         <div className="grid gap-3 lg:grid-cols-[1.1fr_0.7fr_0.7fr]">
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Caută după nume curs sau categorie..."
-            className="h-11 rounded-2xl border border-[#d5daea] bg-[#f8fafc] px-4 text-sm text-[#0f172a] outline-none placeholder:text-[#94a3b8] focus:border-[#93c5fd]"
+            className="h-11 rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none placeholder:text-gray-400 focus:border-cyan-400"
           />
           <select
             value={categoryFilter}
             onChange={(event) => setCategoryFilter(event.target.value)}
-            className="h-11 rounded-2xl border border-[#d5daea] bg-[#f8fafc] px-4 text-sm text-[#0f172a] outline-none focus:border-[#93c5fd]"
+            className="h-11 rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none focus:border-cyan-400"
           >
             {categories.map((category) => (
               <option key={category} value={category}>
@@ -179,7 +179,7 @@ export default function StudentDashboardCoursesPage() {
           <select
             value={levelFilter}
             onChange={(event) => setLevelFilter(event.target.value)}
-            className="h-11 rounded-2xl border border-[#d5daea] bg-[#f8fafc] px-4 text-sm text-[#0f172a] outline-none focus:border-[#93c5fd]"
+            className="h-11 rounded-2xl border border-white/10 bg-white/5 px-4 text-sm text-white outline-none focus:border-cyan-400"
           >
             {levels.map((level) => (
               <option key={level} value={level}>
@@ -192,39 +192,39 @@ export default function StudentDashboardCoursesPage() {
 
       <div className="grid gap-3 xl:grid-cols-2">
         {filteredCourses.map((course) => (
-          <article key={course.courseId} className="rounded-3xl border border-[#e5e7eb] bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)] sm:p-5">
+          <article key={course.courseId} className="rounded-3xl border border-white/10 bg-[#030712] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)] sm:p-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#64748b]">{course.category || "General"}</p>
-                <h2 className="mt-1 text-lg font-bold text-[#0f172a]">{course.title}</h2>
-                <p className="mt-1 text-sm text-[#64748b]">Nivel: {course.level} • Status: {course.status}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-300">{course.category || "General"}</p>
+                <h2 className="mt-1 text-lg font-bold text-white">{course.title}</h2>
+                <p className="mt-1 text-sm text-gray-300">Nivel: {course.level} • Status: {course.status}</p>
               </div>
-              <div className="rounded-full border border-[#d5daea] bg-[#f8fafc] px-3 py-1 text-xs font-semibold text-[#334155]">
+              <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-gray-200">
                 {course.progressPercent}%
               </div>
             </div>
 
             <div className="mt-4 h-2 rounded-full bg-[#e2e8f0]">
-              <div className="h-full rounded-full bg-[#2563eb]" style={{ width: `${course.progressPercent}%` }} />
+              <div className="h-full rounded-full bg-cyan-400" style={{ width: `${course.progressPercent}%` }} />
             </div>
 
             <div className="mt-4 grid gap-2 sm:grid-cols-3 text-xs">
-              <div className="rounded-2xl border border-[#d6deef] bg-[#f8faff] px-2.5 py-2">Lecții: {course.completedLessons}/{course.totalLessons}</div>
-              <div className="rounded-2xl border border-[#d6deef] bg-[#f8faff] px-2.5 py-2">Durată: {course.estimatedMins ?? "--"} min</div>
-              <div className="rounded-2xl border border-[#d6deef] bg-[#f8faff] px-2.5 py-2">Înscris: {formatDate(course.enrolledAt)}</div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-2.5 py-2">Lecții: {course.completedLessons}/{course.totalLessons}</div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-2.5 py-2">Durată: {course.estimatedMins ?? "--"} min</div>
+              <div className="rounded-2xl border border-white/10 bg-white/5 px-2.5 py-2">Înscris: {formatDate(course.enrolledAt)}</div>
             </div>
 
-            <div className="mt-4 rounded-2xl border border-[#e5e7eb] bg-[#f8fafc] p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#64748b]">Următoarea lecție</p>
-              <p className="mt-1 text-sm font-semibold text-[#0f172a]">{course.nextLessonTitle || "Nu există încă o lecție următoare disponibilă."}</p>
-              <p className="mt-1 text-xs text-[#64748b]">Ultima activitate: {formatDate(course.lastActivityAt)} • {formatTime(course.lastActivityAt)}</p>
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-300">Următoarea lecție</p>
+              <p className="mt-1 text-sm font-semibold text-white">{course.nextLessonTitle || "Nu există încă o lecție următoare disponibilă."}</p>
+              <p className="mt-1 text-xs text-gray-300">Ultima activitate: {formatDate(course.lastActivityAt)} • {formatTime(course.lastActivityAt)}</p>
             </div>
           </article>
         ))}
       </div>
 
       {!loading && filteredCourses.length === 0 && (
-        <div className="rounded-3xl border border-dashed border-[#d5daea] bg-white p-6 text-sm text-[#64748b] shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
+        <div className="rounded-3xl border border-dashed border-white/10 bg-[#030712] p-6 text-sm text-gray-300 shadow-[0_8px_24px_rgba(15,23,42,0.03)]">
           Nu există cursuri care să corespundă filtrelor curente sau nu ai încă enrolments.
         </div>
       )}
