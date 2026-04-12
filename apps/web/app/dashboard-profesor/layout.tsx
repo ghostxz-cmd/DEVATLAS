@@ -2,51 +2,72 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
-type StudentSessionPayload = {
-  authenticated: boolean;
-  student?: {
-    id: string;
-    email: string;
-    fullName: string;
-    role: string;
-  };
+type Viewer = {
+  name: string;
+  email: string;
 };
 
 const navItems = [
-  { href: "/dashboard-elev", label: "General" },
-  { href: "/dashboard-elev/cursuri", label: "Cursuri" },
-  { href: "/dashboard-elev/prieteni", label: "Prieteni" },
-  { href: "/dashboard-elev/contul-meu", label: "Contul meu" },
+  { href: "/dashboard-profesor", label: "General" },
+  { href: "/dashboard-profesor/gestionare-cursuri", label: "Gestionare cursuri" },
+  { href: "/dashboard-profesor/prieteni", label: "Prieteni" },
+  { href: "/dashboard-profesor/contul-meu", label: "Contul meu" },
 ] as const;
 
-export default function StudentDashboardLayout({ children }: { children: React.ReactNode }) {
+export default function InstructorDashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const [name, setName] = useState("Elev");
-  const [email, setEmail] = useState("-");
+  const router = useRouter();
+  const [checking, setChecking] = useState(true);
+  const [viewer, setViewer] = useState<Viewer>({ name: "Profesor", email: "-" });
 
   useEffect(() => {
-    const loadSession = async () => {
-      const response = await fetch("/api/auth/students/session", { cache: "no-store" });
-      if (!response.ok) {
-        return;
-      }
+    const checkRole = async () => {
+      try {
+        const supabase = getSupabaseBrowserClient();
+        const { data } = await supabase.auth.getSession();
+        const session = data.session;
+        const role = String(session?.user?.user_metadata?.role ?? "").toUpperCase();
 
-      const payload = (await response.json()) as StudentSessionPayload;
-      if (payload.student?.fullName) {
-        setName(payload.student.fullName);
-      }
-      if (payload.student?.email) {
-        setEmail(payload.student.email);
+        if (!session) {
+          router.replace("/auth/signin?next=/dashboard-profesor");
+          return;
+        }
+
+        if (role === "ADMIN") {
+          router.replace("/dashboad-administrator");
+          return;
+        }
+
+        if (role !== "INSTRUCTOR") {
+          router.replace("/dashboard-elev");
+          return;
+        }
+
+        setViewer({
+          name: String(session.user.user_metadata?.full_name ?? "Profesor"),
+          email: String(session.user.email ?? "-"),
+        });
+      } finally {
+        setChecking(false);
       }
     };
 
-    void loadSession();
-  }, []);
+    void checkRole();
+  }, [router]);
 
-  const initial = useMemo(() => (name.trim().charAt(0) || "E").toUpperCase(), [name]);
+  const initial = useMemo(() => (viewer.name.trim().charAt(0) || "P").toUpperCase(), [viewer.name]);
+
+  if (checking) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-black text-gray-300">
+        Verific sesiunea profesorului...
+      </main>
+    );
+  }
 
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-black text-white">
@@ -77,8 +98,8 @@ export default function StudentDashboardLayout({ children }: { children: React.R
 
             <div className="ml-auto flex items-center gap-2 rounded-full border border-white/20 bg-white/5 px-2 py-1.5 shadow-[0_4px_16px_rgba(6,182,212,0.08)]">
               <div className="text-right">
-                <p className="max-w-[120px] truncate text-xs font-semibold text-white">{name}</p>
-                <p className="max-w-[120px] truncate text-[10px] text-gray-300">{email}</p>
+                <p className="max-w-[160px] truncate text-xs font-semibold text-white">{viewer.name}</p>
+                <p className="max-w-[160px] truncate text-[10px] text-gray-300">{viewer.email}</p>
               </div>
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-cyan-400 text-xs font-black text-black">{initial}</div>
             </div>
