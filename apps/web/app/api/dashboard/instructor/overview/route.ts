@@ -1,6 +1,92 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
+
+type AuthUserResponse = {
+  id: string;
+  email: string | null;
+  user_metadata?: {
+    full_name?: string;
+    role?: string;
+    avatar_url?: string;
+    timezone?: string;
+  };
+};
+
+type InstructorAccountRow = {
+  id: string;
+  auth_user_id: string | null;
+  email: string;
+  full_name: string;
+  avatar_url: string | null;
+  timezone: string | null;
+  status: string;
+  created_at: string;
+};
+
+type InstructorProfileRow = {
+  instructor_account_id: string;
+  phone: string | null;
+  title: string | null;
+  bio: string | null;
+  expertise: string[];
+  can_manage_courses: boolean;
+  can_manage_content: boolean;
+  can_review_submissions: boolean;
+  can_manage_students: boolean;
+  can_view_support: boolean;
+  is_supervisor: boolean;
+};
+
+type CourseRow = {
+  id: string;
+  slug: string;
+  title: string;
+  level: string;
+  category_id: string | null;
+  thumbnail_url: string | null;
+  estimated_mins: number | null;
+  visibility: string;
+  created_by: string;
+  created_at: string;
+};
+
+type LessonRow = {
+  id: string;
+  course_id: string;
+  title: string;
+  position: number;
+  is_published: boolean;
+  estimated_minutes: number;
+};
+
+type EnrollmentRow = {
+  id: string;
+  user_id: string;
+  course_id: string;
+  status: string;
+  enrolled_at: string;
+};
+
+type SubmissionRow = {
+  id: string;
+  lesson_id: string;
+  score: number | null;
+  verdict: string;
+  created_at: string;
+};
+
+type CourseCategoryRow = {
+  id: string;
+  slug: string;
+  name: string;
+};
+
+type InstructorActivityRow = {
+  id: string;
+  instructor_account_id: string;
+  activity_type: string;
+  activity_payload: Record<string, unknown> | null;
+  created_at: string;
+};
 
 type InstructorProfile = {
   fullName: string;
@@ -9,6 +95,9 @@ type InstructorProfile = {
   timezone: string | null;
   status: string;
   completionPercent: number;
+  title: string | null;
+  expertise: string[];
+  hasProfileRecord: boolean;
 };
 
 type CourseSummary = {
@@ -47,6 +136,7 @@ type DashboardOverview = {
     totalLessons: number;
     averageFeedback: number;
     recentActivityCount: number;
+    profileCompletion: number;
   };
   courses: CourseSummary[];
   activityFeed: ActivityItem[];
@@ -55,6 +145,12 @@ type DashboardOverview = {
     courseTitle: string;
     rating: number;
     reviewCount: number;
+  }>;
+  recommendations: Array<{
+    kind: string;
+    title: string;
+    description: string;
+    reason: string;
   }>;
 };
 
@@ -87,229 +183,187 @@ async function fetchRows<T>(supabaseUrl: string, path: string) {
   return (await response.json()) as T[];
 }
 
-type UserRow = {
-  id: string;
-  supabase_auth_id: string | null;
-  email: string;
-  full_name: string;
-  avatar_url: string | null;
-  timezone: string | null;
-  role: string;
-  status: string;
-  created_at: string;
-};
+async function fetchSingleRow<T>(supabaseUrl: string, path: string) {
+  const rows = await fetchRows<T>(supabaseUrl, path);
+  return rows[0] ?? null;
+}
 
-type InstructorAccountRow = {
-  id: string;
-  auth_user_id: string | null;
-  email: string;
-  full_name: string;
-  avatar_url: string | null;
-  timezone: string | null;
-  status: string;
-  created_at: string;
-};
+function normalizeRole(role: string | undefined) {
+  return (role ?? "").trim().toUpperCase();
+}
 
-type CourseRow = {
-  id: string;
-  slug: string;
-  title: string;
-  level: string;
-  category_id: string | null;
-  thumbnail_url: string | null;
-  estimated_mins: number | null;
-  visibility: string;
-  created_by: string;
-  created_at: string;
-};
+function normalizeLevel(level: string) {
+  return level.toLowerCase().replaceAll("_", " ");
+}
 
-type LessonRow = {
-  id: string;
-  course_id: string;
-  title: string;
-  position: number;
-  is_published: boolean;
-  estimated_minutes: number;
-};
-
-type EnrollmentRow = {
-  id: string;
-  user_id: string;
-  course_id: string;
-  status: string;
-  enrolled_at: string;
-};
-
-type ReviewRow = {
-  id: string;
-  course_id: string;
-  rating: number;
-  comment: string;
-  created_by: string;
-  created_at: string;
-};
-
-type CourseCategoryRow = {
-  id: string;
-  slug: string;
-  name: string;
-};
-
-type ActivityLogRow = {
-  id: string;
-  user_id: string | null;
-  activity_type: string;
-  activity_payload: Record<string, unknown> | null;
-  created_at: string;
-};
+function getActivityTitle(activityType: string) {
+  return activityType
+    .toLowerCase()
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
 export async function GET(request: Request) {
   try {
     const supabaseUrl = getRequiredEnv("SUPABASE_URL");
-    
-    // Get session from cookie to find Auth ID
-    const cookieStore = await cookies();
-    const sessionCookie = Array.from(cookieStore.getSetCookie()).find(cookie => 
-      cookie.includes("sb-') || cookieStore.get('sb-auth-token')?.value;
-    
-    // For now, get auth context from request headers if available
-    const authHeader = request.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return NextResponse.json(
-        { message: "Missing or invalid authorization header." },
-        { status: 401 }
-      );
+    const authorization = request.headers.get("authorization");
+
+    if (!authorization?.startsWith("Bearer ")) {
+      return NextResponse.json({ message: "Missing or invalid authorization header." }, { status: 401 });
     }
 
-    // Decode JWT to get user info - simplified approach
-    // In production, you'd verify the token properly
-    const token = authHeader.slice(7);
-    
-    // Fetch all courses and try to identify instructor's courses
-    // First, let's get course data and filter by instructor
-    // This is a simplified version - in a real app you'd need proper instructor-course relationship
-    
-    const [coursesData, lessonsData, enrollmentsData, reviewsData, categoriesData] = await Promise.all([
-      fetchRows<CourseRow>(supabaseUrl, "courses?select=*&order=created_at.desc&limit=200"),
-      fetchRows<LessonRow>(supabaseUrl, "lessons?select=*&order=course_id.asc,position.asc&limit=1000"),
-      fetchRows<EnrollmentRow>(supabaseUrl, "enrollments?select=*&order=enrolled_at.desc&limit=500"),
-      fetchRows<ReviewRow>(supabaseUrl, "reviews?select=*&order=created_at.desc&limit=200"),
-      fetchRows<CourseCategoryRow>(supabaseUrl, "course_categories?select=*&order=name.asc&limit=100"),
-    ]);
-
-    const categoryMap = new Map(categoriesData.map((cat) => [cat.id, cat]));
-    const lessonsByCourse = new Map<string, LessonRow[]>();
-    const enrollmentsByCourse = new Map<string, EnrollmentRow[]>();
-    const reviewsByCourse = new Map<string, ReviewRow[]>();
-
-    for (const lesson of lessonsData) {
-      const bucket = lessonsByCourse.get(lesson.course_id) ?? [];
-      bucket.push(lesson);
-      lessonsByCourse.set(lesson.course_id, bucket);
-    }
-
-    for (const enrollment of enrollmentsData) {
-      const bucket = enrollmentsByCourse.get(enrollment.course_id) ?? [];
-      bucket.push(enrollment);
-      enrollmentsByCourse.set(enrollment.course_id, bucket);
-    }
-
-    for (const review of reviewsData) {
-      const bucket = reviewsByCourse.get(review.course_id) ?? [];
-      bucket.push(review);
-      reviewsByCourse.set(review.course_id, bucket);
-    }
-
-    // Mock instructor data - in real implementation, get from session
-    const mockInstructor = {
-      fullName: "Profesor Exemplu",
-      email: "profesor@example.com",
-      avatarUrl: null,
-      timezone: "Europe/Bucharest",
-      status: "ACTIVE",
-    };
-
-    // Build course summaries - for demo, use first 5 published courses as instructor's
-    const courseSummaries: CourseSummary[] = coursesData
-      .filter((course) => course.visibility === "PUBLISHED")
-      .slice(0, 5)
-      .map((course) => {
-        const lessons = lessonsByCourse.get(course.id) ?? [];
-        const enrollments = enrollmentsByCourse.get(course.id) ?? [];
-        const reviews = reviewsByCourse.get(course.id) ?? [];
-        const uniqueStudents = new Set(enrollments.map((e) => e.user_id)).size;
-        const avgRating =
-          reviews.length > 0
-            ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-            : null;
-        const category = course.category_id
-          ? categoryMap.get(course.category_id)
-          : null;
-
-        return {
-          courseId: course.id,
-          title: course.title,
-          slug: course.slug,
-          level: course.level.toLowerCase().replace(/_/g, " "),
-          category: category?.name ?? null,
-          thumbnailUrl: course.thumbnail_url ?? null,
-          estimatedMins: course.estimated_mins ?? null,
-          createdAt: course.created_at,
-          visibility: course.visibility,
-          lessonCount: lessons.length,
-          enrollmentCount: enrollments.length,
-          studentCount: uniqueStudents,
-          averageRating: avgRating ? Math.round(avgRating * 10) / 10 : null,
-          reviewCount: reviews.length,
-          status: "PUBLISHED" as const,
-        };
-      });
-
-    // Summary stats
-    const publishedCount = coursesData.filter((c) => c.visibility === "PUBLISHED").length;
-    const draftCount = coursesData.filter((c) => c.visibility === "DRAFT").length;
-    const inReviewCount = coursesData.filter((c) => c.visibility === "IN_REVIEW").length;
-
-    const allStudents = new Set<string>();
-    const allReviews: ReviewRow[] = [];
-    courseSummaries.forEach((course) => {
-      const enroll = enrollmentsByCourse.get(course.courseId) ?? [];
-      enroll.forEach((e) => allStudents.add(e.user_id));
-      const reviews = reviewsByCourse.get(course.courseId) ?? [];
-      allReviews.push(...reviews);
+    const userResponse = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: {
+        ...getSupabaseHeaders(),
+        Authorization: authorization,
+      },
     });
 
-    const averageFeedback =
-      allReviews.length > 0
-        ? Math.round(
-            (allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length) * 10
-          ) / 10
-        : 0;
+    if (!userResponse.ok) {
+      return NextResponse.json({ message: "Unauthorized instructor session." }, { status: 401 });
+    }
 
-    // Activity feed - simulate from course creation and recent reviews
-    const activityFeed: ActivityItem[] = [
-      ...courseSummaries.slice(0, 3).map((course) => ({
+    const authedUser = (await userResponse.json()) as AuthUserResponse;
+    const role = normalizeRole(authedUser.user_metadata?.role);
+
+    if (role !== "INSTRUCTOR") {
+      return NextResponse.json({ message: "Instructor dashboard access only." }, { status: 403 });
+    }
+
+    const email = (authedUser.email ?? "").trim().toLowerCase();
+
+    const account =
+      (await fetchSingleRow<InstructorAccountRow>(
+        supabaseUrl,
+        `instructor_accounts?select=id,auth_user_id,email,full_name,avatar_url,timezone,status,created_at&auth_user_id=eq.${encodeURIComponent(authedUser.id)}&limit=1`,
+      )) ??
+      (email
+        ? await fetchSingleRow<InstructorAccountRow>(
+            supabaseUrl,
+            `instructor_accounts?select=id,auth_user_id,email,full_name,avatar_url,timezone,status,created_at&email=eq.${encodeURIComponent(email)}&limit=1`,
+          )
+        : null);
+
+    if (!account || account.status !== "ACTIVE") {
+      return NextResponse.json({ message: "Instructor account not found." }, { status: 404 });
+    }
+
+    const profile = await fetchSingleRow<InstructorProfileRow>(
+      supabaseUrl,
+      `instructor_profiles?select=instructor_account_id,phone,title,bio,expertise,can_manage_courses,can_manage_content,can_review_submissions,can_manage_students,can_view_support,is_supervisor&instructor_account_id=eq.${encodeURIComponent(account.id)}&limit=1`,
+    );
+
+    const [courses, lessons, enrollments, submissions, categories, activityRows] = await Promise.all([
+      fetchRows<CourseRow>(supabaseUrl, `courses?select=id,slug,title,level,category_id,thumbnail_url,estimated_mins,visibility,created_by,created_at&created_by=eq.${encodeURIComponent(account.id)}&order=created_at.desc&limit=250`),
+      fetchRows<LessonRow>(supabaseUrl, "lessons?select=id,course_id,title,position,is_published,estimated_minutes&order=course_id.asc,position.asc&limit=2000"),
+      fetchRows<EnrollmentRow>(supabaseUrl, "enrollments?select=id,user_id,course_id,status,enrolled_at&order=enrolled_at.desc&limit=4000"),
+      fetchRows<SubmissionRow>(supabaseUrl, "submissions?select=id,lesson_id,score,verdict,created_at&score=not.is.null&order=created_at.desc&limit=4000"),
+      fetchRows<CourseCategoryRow>(supabaseUrl, "course_categories?select=id,slug,name&order=name.asc&limit=100"),
+      fetchRows<InstructorActivityRow>(supabaseUrl, `instructor_activity_logs?select=id,instructor_account_id,activity_type,activity_payload,created_at&instructor_account_id=eq.${encodeURIComponent(account.id)}&order=created_at.desc&limit=100`),
+    ]);
+
+    const categoryMap = new Map(categories.map((category) => [category.id, category]));
+    const lessonMap = new Map<string, LessonRow[]>();
+    const lessonById = new Map<string, LessonRow>(lessons.map((lesson) => [lesson.id, lesson]));
+    const enrollmentMap = new Map<string, EnrollmentRow[]>();
+    const feedbackMap = new Map<string, SubmissionRow[]>();
+
+    for (const lesson of lessons) {
+      const bucket = lessonMap.get(lesson.course_id) ?? [];
+      bucket.push(lesson);
+      lessonMap.set(lesson.course_id, bucket);
+    }
+
+    for (const enrollment of enrollments) {
+      const bucket = enrollmentMap.get(enrollment.course_id) ?? [];
+      bucket.push(enrollment);
+      enrollmentMap.set(enrollment.course_id, bucket);
+    }
+
+    for (const submission of submissions) {
+      const lesson = lessonById.get(submission.lesson_id);
+      if (!lesson || submission.score === null) {
+        continue;
+      }
+
+      const bucket = feedbackMap.get(lesson.course_id) ?? [];
+      bucket.push(submission);
+      feedbackMap.set(lesson.course_id, bucket);
+    }
+
+    const courseSummaries: CourseSummary[] = courses.map((course) => {
+      const courseLessons = lessonMap.get(course.id) ?? [];
+      const courseEnrollments = enrollmentMap.get(course.id) ?? [];
+      const courseFeedback = feedbackMap.get(course.id) ?? [];
+      const uniqueStudents = new Set(courseEnrollments.map((item) => item.user_id)).size;
+      const averageRating = courseFeedback.length > 0
+        ? Math.round((courseFeedback.reduce((sum, item) => sum + (item.score ?? 0), 0) / courseFeedback.length) * 10) / 10
+        : null;
+      const category = course.category_id ? categoryMap.get(course.category_id) ?? null : null;
+
+      return {
+        courseId: course.id,
+        title: course.title,
+        slug: course.slug,
+        level: normalizeLevel(course.level),
+        category: category?.name ?? null,
+        thumbnailUrl: course.thumbnail_url ?? null,
+        estimatedMins: course.estimated_mins ?? null,
+        createdAt: course.created_at,
+        visibility: course.visibility,
+        lessonCount: courseLessons.length,
+        enrollmentCount: courseEnrollments.length,
+        studentCount: uniqueStudents,
+        averageRating,
+        reviewCount: courseFeedback.length,
+        status: (course.visibility === "DRAFT" ? "DRAFT" : course.visibility === "IN_REVIEW" ? "IN_REVIEW" : "PUBLISHED") as "PUBLISHED" | "DRAFT" | "IN_REVIEW",
+      };
+    });
+
+    const activeCourses = courseSummaries.filter((course) => course.status === "PUBLISHED").length;
+    const draftCourses = courseSummaries.filter((course) => course.status === "DRAFT").length;
+    const reviewCourses = courseSummaries.filter((course) => course.status === "IN_REVIEW").length;
+    const totalLessons = courseSummaries.reduce((sum, course) => sum + course.lessonCount, 0);
+    const totalStudents = new Set(
+      courseSummaries.flatMap((course) => (enrollmentMap.get(course.courseId) ?? []).map((item) => item.user_id)),
+    ).size;
+
+    const allFeedback = courseSummaries.flatMap((course) => feedbackMap.get(course.courseId) ?? []);
+    const averageFeedback = allFeedback.length > 0
+      ? Math.round((allFeedback.reduce((sum, item) => sum + (item.score ?? 0), 0) / allFeedback.length) * 10) / 10
+      : 0;
+
+    const profileCompletion = Math.round(
+      [account.full_name, account.email, account.timezone, account.avatar_url, profile?.title].filter(Boolean).length / 5 * 100,
+    );
+
+    const activityFeed = [
+      ...activityRows.slice(0, 6).map((item) => ({
+        kind: "log",
+        title: getActivityTitle(item.activity_type),
+        detail: item.activity_payload ? JSON.stringify(item.activity_payload).slice(0, 120) : "Activitate de cont înregistrată.",
+        createdAt: item.created_at,
+      })),
+      ...courseSummaries.slice(0, 4).map((course) => ({
         kind: "course",
         title: course.title,
-        detail: `Lecția publicată • ${course.lessonCount} lecții totale`,
+        detail: `${course.lessonCount} lecții • ${course.studentCount} studenți • ${course.reviewCount} feedback-uri`,
         createdAt: course.createdAt,
       })),
-      ...allReviews.slice(0, 3).map((review) => ({
+      ...allFeedback.slice(0, 4).map((submission) => ({
         kind: "review",
-        title: `Feedback nou • ${review.rating}/5 stele`,
-        detail: review.comment.slice(0, 50),
-        createdAt: review.created_at,
+        title: `Feedback ${submission.score ?? 0}/5`,
+        detail: submission.verdict ? `Verdict: ${submission.verdict}` : "Feedback înregistrat din platformă.",
+        createdAt: submission.created_at,
       })),
     ]
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )
-      .slice(0, 8);
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 10);
 
-    // Feedback summary
     const feedbackSummary = courseSummaries
-      .filter((c) => c.reviewCount > 0)
+      .filter((course) => course.reviewCount > 0)
+      .sort((a, b) => (b.averageRating ?? 0) - (a.averageRating ?? 0))
+      .slice(0, 5)
       .map((course) => ({
         courseId: course.courseId,
         courseTitle: course.title,
@@ -317,50 +371,98 @@ export async function GET(request: Request) {
         reviewCount: course.reviewCount,
       }));
 
-    const profileCompletion = Math.round(
-      [
-        mockInstructor.fullName,
-        mockInstructor.email,
-        mockInstructor.timezone,
-        mockInstructor.avatarUrl,
-      ].filter(Boolean).length /
-        4 *
-        100
-    );
+    const recommendations: DashboardOverview["recommendations"] = [];
+
+    if (!profile?.title) {
+      recommendations.push({
+        kind: "profile",
+        title: "Completează titlul profesional",
+        description: "Adaugă un titlu clar pentru a face profilul mai lizibil în administrare și în dashboard.",
+        reason: "Lipsește titlul de instructor",
+      });
+    }
+
+    if (!profile?.expertise?.length) {
+      recommendations.push({
+        kind: "profile",
+        title: "Setează expertiza",
+        description: "Adaugă competențele principale ca să poți organiza mai bine cursurile și conținutul.",
+        reason: "Lipsește expertiza",
+      });
+    }
+
+    if (courseSummaries.length === 0) {
+      recommendations.push({
+        kind: "course",
+        title: "Publică primul curs",
+        description: "Nu există încă materiale create de acest cont. Creează primul curs și începe să-l structurezi.",
+        reason: "Nu există cursuri proprii",
+      });
+    } else {
+      const weakestCourse = [...courseSummaries].sort((a, b) => (a.averageRating ?? 0) - (b.averageRating ?? 0))[0];
+      if (weakestCourse && weakestCourse.reviewCount > 0 && (weakestCourse.averageRating ?? 0) < 4) {
+        recommendations.push({
+          kind: "feedback",
+          title: `Îmbunătățește ${weakestCourse.title}`,
+          description: "Acesta este cursul cu cel mai slab feedback. Verifică structura lecțiilor și actualizează conținutul.",
+          reason: "Feedback sub 4 stele",
+        });
+      }
+    }
+
+    if (averageFeedback > 0 && averageFeedback < 4.5) {
+      recommendations.push({
+        kind: "quality",
+        title: "Urmărește trendul feedback-ului",
+        description: "Ai un scor bun, dar există spațiu pentru ajustări. Folosește review-urile recente pentru optimizare.",
+        reason: "Feedback mediu sub 4.5",
+      });
+    }
+
+    if (activityFeed.length < 3) {
+      recommendations.push({
+        kind: "activity",
+        title: "Generează activitate în cont",
+        description: "Dashboard-ul are puține evenimente recente. Actualizează cursuri sau profilul pentru un feed mai bogat.",
+        reason: "Prea puțină activitate recentă",
+      });
+    }
 
     return NextResponse.json({
       profile: {
-        fullName: mockInstructor.fullName,
-        email: mockInstructor.email,
-        avatarUrl: mockInstructor.avatarUrl,
-        timezone: mockInstructor.timezone,
-        status: mockInstructor.status,
+        fullName: account.full_name,
+        email: account.email,
+        avatarUrl: account.avatar_url,
+        timezone: account.timezone,
+        status: account.status,
         completionPercent: profileCompletion,
+        title: profile?.title ?? null,
+        expertise: profile?.expertise ?? [],
+        hasProfileRecord: Boolean(profile),
       },
       summary: {
-        coursesActive: publishedCount,
-        coursesDraft: draftCount,
-        coursesInReview: inReviewCount,
-        totalCourses: publishedCount + draftCount + inReviewCount,
-        totalStudents: allStudents.size,
-        totalLessons: courseSummaries.reduce((sum, c) => sum + c.lessonCount, 0),
+        coursesActive: activeCourses,
+        coursesDraft: draftCourses,
+        coursesInReview: reviewCourses,
+        totalCourses: courseSummaries.length,
+        totalStudents,
+        totalLessons,
         averageFeedback,
         recentActivityCount: activityFeed.length,
+        profileCompletion,
       },
       courses: courseSummaries,
       activityFeed,
       feedbackSummary,
-    } as DashboardOverview);
+      recommendations,
+    } satisfies DashboardOverview);
   } catch (error) {
     console.error("Instructor dashboard error:", error);
     return NextResponse.json(
       {
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unexpected instructor dashboard error.",
+        message: error instanceof Error ? error.message : "Unexpected instructor dashboard error.",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
