@@ -10,14 +10,48 @@ import {
   ensureStudentSecuritySettings,
   fetchStudentSecuritySettings,
   logStudentSecurityEvent,
+  type StudentSecuritySettingsRow,
   updateStudentSecuritySettings,
 } from "@/lib/student-security-store";
+import {
+  ensureInstructorSecuritySettings,
+  logInstructorSecurityEvent,
+  type InstructorSecuritySettingsRow,
+  updateInstructorSecuritySettings,
+} from "@/lib/instructor-security-store";
 
 type StudentAccountRow = {
   id: string;
   email: string;
   full_name: string;
   status: string;
+};
+
+type InstructorAccountRow = {
+  id: string;
+  auth_user_id: string | null;
+  email: string;
+  full_name: string;
+  status: string;
+};
+
+type AuthUserResponse = {
+  id: string;
+  email: string | null;
+  user_metadata?: {
+    role?: string;
+  };
+};
+
+type AccountContext = {
+  kind: "student" | "instructor";
+  supabaseUrl: string;
+  accountId: string;
+  authUserId: string | null;
+  email: string;
+  fullName: string;
+  role: string;
+  security: StudentSecuritySettingsRow | InstructorSecuritySettingsRow;
 };
 
 const requestSchema = z.object({});
@@ -66,8 +100,108 @@ async function fetchStudentAccount(supabaseUrl: string, studentId: string) {
   return rows[0] ?? null;
 }
 
-async function getStudentContext() {
+async function fetchStudentByAuthUserId(supabaseUrl: string, authUserId: string) {
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/student_accounts?select=id,email,full_name,status&auth_user_id=eq.${encodeURIComponent(authUserId)}&limit=1`,
+    { headers: getSupabaseHeaders() },
+  );
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  const rows = (await response.json()) as StudentAccountRow[];
+  return rows[0] ?? null;
+}
+
+async function fetchInstructorByAuthUserId(supabaseUrl: string, authUserId: string) {
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/instructor_accounts?select=id,auth_user_id,email,full_name,status&auth_user_id=eq.${encodeURIComponent(authUserId)}&limit=1`,
+    { headers: getSupabaseHeaders() },
+  );
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  const rows = (await response.json()) as InstructorAccountRow[];
+  return rows[0] ?? null;
+}
+
+function normalizeRole(role: string | undefined) {
+  return (role ?? "STUDENT").trim().toUpperCase();
+}
+
+async function getAuthedUser(request: Request) {
   const supabaseUrl = getRequiredEnv("SUPABASE_URL");
+  const authorization = request.headers.get("authorization");
+
+  if (!authorization?.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      ...getSupabaseHeaders(),
+      Authorization: authorization,
+    },
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return (await response.json()) as AuthUserResponse;
+}
+
+async function getAccountContext(request: Request): Promise<AccountContext | null> {
+  const supabaseUrl = getRequiredEnv("SUPABASE_URL");
+
+  const authedUser = await getAuthedUser(request);
+  if (authedUser) {
+    const role = normalizeRole(authedUser.user_metadata?.role);
+
+    if (role === "INSTRUCTOR") {
+      const instructor = await fetchInstructorByAuthUserId(supabaseUrl, authedUser.id);
+      if (!instructor || instructor.status !== "ACTIVE") {
+        return null;
+      }
+
+      const security = await ensureInstructorSecuritySettings(supabaseUrl, authedUser.id, instructor.id, role);
+      return {
+        kind: "instructor",
+        supabaseUrl,
+        accountId: instructor.id,
+        authUserId: authedUser.id,
+        email: instructor.email,
+        fullName: instructor.full_name,
+        role,
+        security,
+      };
+    }
+
+    const student = await fetchStudentByAuthUserId(supabaseUrl, authedUser.id);
+    if (!student || student.status !== "ACTIVE") {
+      return null;
+    }
+
+    const security = (await ensureStudentSecuritySettings(supabaseUrl, student.id)) ?? (await fetchStudentSecuritySettings(supabaseUrl, student.id));
+    if (!security) {
+      throw new Error("Failed to load security settings.");
+    }
+
+    return {
+      kind: "student",
+      supabaseUrl,
+      accountId: student.id,
+      authUserId: authedUser.id,
+      email: student.email,
+      fullName: student.full_name,
+      role,
+      security,
+    };
+  }
+
   const cookieStore = await cookies();
   const token = cookieStore.get(getStudentSessionCookieName())?.value;
   const session = verifyStudentSessionToken(token);
@@ -86,7 +220,34 @@ async function getStudentContext() {
     throw new Error("Failed to load security settings.");
   }
 
-  return { supabaseUrl, student, security };
+  return {
+    kind: "student",
+    supabaseUrl,
+    accountId: student.id,
+    authUserId: null,
+    email: student.email,
+    fullName: student.full_name,
+    role: "STUDENT",
+    security,
+  };
+}
+
+async function updateSecuritySettings(context: AccountContext, payload: Record<string, unknown>) {
+  if (context.kind === "instructor") {
+    await updateInstructorSecuritySettings(context.supabaseUrl, context.authUserId!, context.accountId, payload, context.role);
+    return;
+  }
+
+  await updateStudentSecuritySettings(context.supabaseUrl, context.accountId, payload);
+}
+
+async function logSecurityEvent(context: AccountContext, eventType: string, metadata: Record<string, unknown>) {
+  if (context.kind === "instructor") {
+    await logInstructorSecurityEvent(context.supabaseUrl, context.authUserId!, context.accountId, eventType, metadata, context.role);
+    return;
+  }
+
+  await logStudentSecurityEvent(context.supabaseUrl, context.accountId, eventType, metadata);
 }
 
 async function sendPinResetEmail(input: { to: string; fullName: string; resetCode: string }) {
@@ -123,18 +284,17 @@ async function sendPinResetEmail(input: { to: string; fullName: string; resetCod
 export async function POST(request: Request) {
   try {
     requestSchema.parse(await request.json().catch(() => ({})));
-    const context = await getStudentContext();
+    const context = await getAccountContext(request);
     if (!context) {
-      return NextResponse.json({ message: "Missing valid student session." }, { status: 401 });
+      return NextResponse.json({ message: "Missing valid authentication context." }, { status: 401 });
     }
 
-    const { supabaseUrl, student } = context;
-    const email = normalizeEmail(student.email);
+    const email = normalizeEmail(context.email);
     const resetCode = crypto.randomInt(0, 1_000_000).toString().padStart(6, "0");
-    const codeHash = hashPinResetCode(student.id, resetCode);
+    const codeHash = hashPinResetCode(context.accountId, resetCode);
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
-    await updateStudentSecuritySettings(supabaseUrl, student.id, {
+    await updateSecuritySettings(context, {
       pin_reset_code_hash: codeHash,
       pin_reset_expires_at: expiresAt,
       pin_reset_attempts: 0,
@@ -143,11 +303,11 @@ export async function POST(request: Request) {
 
     await sendPinResetEmail({
       to: email,
-      fullName: student.full_name,
+      fullName: context.fullName,
       resetCode,
     });
 
-    await logStudentSecurityEvent(supabaseUrl, student.id, "pin_reset_requested", {});
+    await logSecurityEvent(context, "pin_reset_requested", {});
 
     return NextResponse.json({ ok: true });
   } catch (error) {
@@ -164,13 +324,13 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const context = await getStudentContext();
+    const context = await getAccountContext(request);
     if (!context) {
-      return NextResponse.json({ message: "Missing valid student session." }, { status: 401 });
+      return NextResponse.json({ message: "Missing valid authentication context." }, { status: 401 });
     }
 
     const payload = confirmSchema.parse(await request.json());
-    const { supabaseUrl, student, security } = context;
+    const { security } = context;
 
     if (!security.pin_reset_code_hash || !security.pin_reset_expires_at) {
       return NextResponse.json({ message: "Nu există un cod PIN activ." }, { status: 409 });
@@ -184,16 +344,16 @@ export async function PUT(request: Request) {
       return NextResponse.json({ message: "Prea multe încercări. Solicită un cod nou." }, { status: 429 });
     }
 
-    const expectedHash = hashPinResetCode(student.id, payload.code);
+    const expectedHash = hashPinResetCode(context.accountId, payload.code);
     if (!crypto.timingSafeEqual(Buffer.from(expectedHash), Buffer.from(security.pin_reset_code_hash))) {
-      await updateStudentSecuritySettings(supabaseUrl, student.id, {
+      await updateSecuritySettings(context, {
         pin_reset_attempts: security.pin_reset_attempts + 1,
       });
-      await logStudentSecurityEvent(supabaseUrl, student.id, "pin_reset_failed", {});
+      await logSecurityEvent(context, "pin_reset_failed", {});
       return NextResponse.json({ message: "Codul PIN este invalid." }, { status: 403 });
     }
 
-    await updateStudentSecuritySettings(supabaseUrl, student.id, {
+    await updateSecuritySettings(context, {
       pin_hash: hashSecurityPin(payload.newPin),
       pin_enabled: true,
       pin_failed_attempts: 0,
@@ -207,12 +367,12 @@ export async function PUT(request: Request) {
       pin_reset_requested_at: null,
     });
 
-    await logStudentSecurityEvent(supabaseUrl, student.id, "pin_reset_confirmed", {});
+    await logSecurityEvent(context, "pin_reset_confirmed", {});
 
     const response = NextResponse.json({ ok: true });
     response.cookies.set({
       name: "devatlas_student_security_unlock",
-      value: createSecurityUnlockToken({ studentId: student.id, ttlSeconds: 60 * 5 }),
+      value: createSecurityUnlockToken({ studentId: context.accountId, ttlSeconds: 60 * 5 }),
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

@@ -321,13 +321,24 @@ export async function PUT(request: Request) {
       const role = normalizeRole(authedUser.user_metadata?.role);
       const email = normalizeEmail(authedUser.email);
 
+      const existingPreferencesRow = await fetchSingleRow<{
+        preferences: StoredPreferences | null;
+      }>(
+        `${supabaseUrl}/rest/v1/account_preferences?select=preferences&auth_user_id=eq.${encodeURIComponent(authedUser.id)}&limit=1`,
+      );
+
+      const mergedPreferences = {
+        ...(existingPreferencesRow?.preferences ?? {}),
+        ...payload.preferences,
+      };
+
       await upsertJsonRow(`${supabaseUrl}/rest/v1/account_preferences?on_conflict=auth_user_id`, {
         auth_user_id: authedUser.id,
         role,
         full_name: payload.fullName,
         avatar_url: payload.avatarUrl ?? null,
         timezone: payload.timezone ?? null,
-        preferences: payload.preferences,
+        preferences: mergedPreferences,
       });
 
       if (role === "STUDENT") {

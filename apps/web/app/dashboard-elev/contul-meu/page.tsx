@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 const QRCode = require("qrcode") as {
   toDataURL: (text: string, options?: Record<string, unknown>) => Promise<string>;
@@ -153,6 +154,22 @@ function statusColor(value: boolean) {
   return value ? "bg-[#22c55e]" : "bg-[#94a3b8]";
 }
 
+async function apiFetch(input: string, init: RequestInit = {}) {
+  const supabase = getSupabaseBrowserClient();
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+
+  const headers = new Headers(init.headers ?? undefined);
+  if (accessToken) {
+    headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+
+  return fetch(input, {
+    ...init,
+    headers,
+  });
+}
+
 export default function StudentDashboardAccountPage() {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -188,8 +205,8 @@ export default function StudentDashboardAccountPage() {
     const load = async () => {
       try {
         const [settingsResponse, securityResponse] = await Promise.all([
-          fetch("/api/account/settings", { cache: "no-store" }),
-          fetch("/api/account/security", { cache: "no-store" }),
+          apiFetch("/api/account/settings", { cache: "no-store" }),
+          apiFetch("/api/account/security", { cache: "no-store" }),
         ]);
 
         if (!settingsResponse.ok) {
@@ -314,7 +331,7 @@ export default function StudentDashboardAccountPage() {
   }, [profileDraftAvatarPreview]);
 
   const refreshSecurity = async () => {
-    const response = await fetch("/api/account/security", { cache: "no-store" });
+    const response = await apiFetch("/api/account/security", { cache: "no-store" });
     if (!response.ok) {
       const payload = (await response.json().catch(() => null)) as { message?: string } | null;
       throw new Error(payload?.message || "Nu am putut reîncărca securitatea contului.");
@@ -324,7 +341,7 @@ export default function StudentDashboardAccountPage() {
   };
 
   const refreshAccountSettings = async () => {
-    const response = await fetch("/api/account/settings", { cache: "no-store" });
+    const response = await apiFetch("/api/account/settings", { cache: "no-store" });
     if (!response.ok) {
       const payload = (await response.json().catch(() => null)) as { message?: string } | null;
       throw new Error(payload?.message || "Nu am putut reîncărca setările contului.");
@@ -340,7 +357,7 @@ export default function StudentDashboardAccountPage() {
     setSecurityMessage(null);
 
     try {
-      const response = await fetch("/api/account/settings", {
+      const response = await apiFetch("/api/account/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -478,7 +495,7 @@ export default function StudentDashboardAccountPage() {
         const formData = new FormData();
         formData.append("file", profileDraftAvatarFile);
 
-        const avatarResponse = await fetch("/api/account/avatar", {
+        const avatarResponse = await apiFetch("/api/account/avatar", {
           method: "POST",
           body: formData,
         });
@@ -491,7 +508,7 @@ export default function StudentDashboardAccountPage() {
         uploadedAvatarUrl = avatarPayload?.avatarUrl ?? uploadedAvatarUrl;
       }
 
-      const response = await fetch("/api/account/settings", {
+      const response = await apiFetch("/api/account/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -515,7 +532,7 @@ export default function StudentDashboardAccountPage() {
 
   const configureTotp = async () => {
     await runSecurityAction(async () => {
-      const response = await fetch("/api/account/security/totp", {
+      const response = await apiFetch("/api/account/security/totp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPin: totpPin || undefined }),
@@ -538,7 +555,7 @@ export default function StudentDashboardAccountPage() {
     }
 
     await runSecurityAction(async () => {
-      const response = await fetch("/api/account/security/totp", {
+      const response = await apiFetch("/api/account/security/totp", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: totpCode }),
@@ -564,7 +581,7 @@ export default function StudentDashboardAccountPage() {
     }
 
     await runSecurityAction(async () => {
-      const response = await fetch("/api/account/security/pin", {
+      const response = await apiFetch("/api/account/security/pin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin: pinValue, currentPin: pinCurrentValue || undefined }),
@@ -589,7 +606,7 @@ export default function StudentDashboardAccountPage() {
     }
 
     await runSecurityAction(async () => {
-      const response = await fetch("/api/account/security/pin", {
+      const response = await apiFetch("/api/account/security/pin", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin: pinVerifyValue }),
@@ -614,7 +631,7 @@ export default function StudentDashboardAccountPage() {
     }
 
     await runSecurityAction(async () => {
-      const response = await fetch("/api/account/security/pin", {
+      const response = await apiFetch("/api/account/security/pin", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPin: pinCurrentValue }),
@@ -639,7 +656,7 @@ export default function StudentDashboardAccountPage() {
     }
 
     await runSecurityAction(async () => {
-      const response = await fetch("/api/account/security/totp", {
+      const response = await apiFetch("/api/account/security/totp", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ currentPin: totpDisablePin || undefined }),
@@ -692,7 +709,7 @@ export default function StudentDashboardAccountPage() {
 
   const requestPinResetCode = async () => {
     await runSecurityAction(async () => {
-      const response = await fetch("/api/account/security/pin/reset", {
+      const response = await apiFetch("/api/account/security/pin/reset", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
@@ -720,7 +737,7 @@ export default function StudentDashboardAccountPage() {
     }
 
     await runSecurityAction(async () => {
-      const response = await fetch("/api/account/security/pin/reset", {
+      const response = await apiFetch("/api/account/security/pin/reset", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code: pinResetCode, newPin: pinResetNewPin }),
@@ -1430,3 +1447,4 @@ export default function StudentDashboardAccountPage() {
     </section>
   );
 }
+

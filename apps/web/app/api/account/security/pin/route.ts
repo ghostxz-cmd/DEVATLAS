@@ -7,14 +7,48 @@ import {
   ensureStudentSecuritySettings,
   fetchStudentSecuritySettings,
   logStudentSecurityEvent,
+  type StudentSecuritySettingsRow,
   updateStudentSecuritySettings,
 } from "@/lib/student-security-store";
+import {
+  ensureInstructorSecuritySettings,
+  logInstructorSecurityEvent,
+  type InstructorSecuritySettingsRow,
+  updateInstructorSecuritySettings,
+} from "@/lib/instructor-security-store";
 
 type StudentAccountRow = {
   id: string;
   email: string;
   full_name: string;
   status: string;
+};
+
+type InstructorAccountRow = {
+  id: string;
+  auth_user_id: string | null;
+  email: string;
+  full_name: string;
+  status: string;
+};
+
+type AuthUserResponse = {
+  id: string;
+  email: string | null;
+  user_metadata?: {
+    role?: string;
+  };
+};
+
+type AccountContext = {
+  kind: "student" | "instructor";
+  supabaseUrl: string;
+  accountId: string;
+  authUserId: string | null;
+  email: string;
+  fullName: string;
+  role: string;
+  security: StudentSecuritySettingsRow | InstructorSecuritySettingsRow;
 };
 
 const pinSchema = z.object({
@@ -53,8 +87,108 @@ async function fetchStudentAccount(supabaseUrl: string, studentId: string) {
   return rows[0] ?? null;
 }
 
-async function getStudentContext() {
+async function fetchStudentByAuthUserId(supabaseUrl: string, authUserId: string) {
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/student_accounts?select=id,email,full_name,status&auth_user_id=eq.${encodeURIComponent(authUserId)}&limit=1`,
+    { headers: getSupabaseHeaders() },
+  );
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  const rows = (await response.json()) as StudentAccountRow[];
+  return rows[0] ?? null;
+}
+
+async function fetchInstructorByAuthUserId(supabaseUrl: string, authUserId: string) {
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/instructor_accounts?select=id,auth_user_id,email,full_name,status&auth_user_id=eq.${encodeURIComponent(authUserId)}&limit=1`,
+    { headers: getSupabaseHeaders() },
+  );
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  const rows = (await response.json()) as InstructorAccountRow[];
+  return rows[0] ?? null;
+}
+
+function normalizeRole(role: string | undefined) {
+  return (role ?? "STUDENT").trim().toUpperCase();
+}
+
+async function getAuthedUser(request: Request) {
   const supabaseUrl = getRequiredEnv("SUPABASE_URL");
+  const authorization = request.headers.get("authorization");
+
+  if (!authorization?.startsWith("Bearer ")) {
+    return null;
+  }
+
+  const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: {
+      ...getSupabaseHeaders(),
+      Authorization: authorization,
+    },
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return (await response.json()) as AuthUserResponse;
+}
+
+async function getAccountContext(request: Request): Promise<AccountContext | null> {
+  const supabaseUrl = getRequiredEnv("SUPABASE_URL");
+
+  const authedUser = await getAuthedUser(request);
+  if (authedUser) {
+    const role = normalizeRole(authedUser.user_metadata?.role);
+
+    if (role === "INSTRUCTOR") {
+      const instructor = await fetchInstructorByAuthUserId(supabaseUrl, authedUser.id);
+      if (!instructor || instructor.status !== "ACTIVE") {
+        return null;
+      }
+
+      const security = await ensureInstructorSecuritySettings(supabaseUrl, authedUser.id, instructor.id, role);
+      return {
+        kind: "instructor",
+        supabaseUrl,
+        accountId: instructor.id,
+        authUserId: authedUser.id,
+        email: instructor.email,
+        fullName: instructor.full_name,
+        role,
+        security,
+      };
+    }
+
+    const student = await fetchStudentByAuthUserId(supabaseUrl, authedUser.id);
+    if (!student || student.status !== "ACTIVE") {
+      return null;
+    }
+
+    const security = (await ensureStudentSecuritySettings(supabaseUrl, student.id)) ?? (await fetchStudentSecuritySettings(supabaseUrl, student.id));
+    if (!security) {
+      throw new Error("Failed to load security settings.");
+    }
+
+    return {
+      kind: "student",
+      supabaseUrl,
+      accountId: student.id,
+      authUserId: authedUser.id,
+      email: student.email,
+      fullName: student.full_name,
+      role,
+      security,
+    };
+  }
+
   const cookieStore = await cookies();
   const token = cookieStore.get(getStudentSessionCookieName())?.value;
   const session = verifyStudentSessionToken(token);
@@ -73,7 +207,34 @@ async function getStudentContext() {
     throw new Error("Failed to load security settings.");
   }
 
-  return { supabaseUrl, student, security };
+  return {
+    kind: "student",
+    supabaseUrl,
+    accountId: student.id,
+    authUserId: null,
+    email: student.email,
+    fullName: student.full_name,
+    role: "STUDENT",
+    security,
+  };
+}
+
+async function updateSecuritySettings(context: AccountContext, payload: Record<string, unknown>) {
+  if (context.kind === "instructor") {
+    await updateInstructorSecuritySettings(context.supabaseUrl, context.authUserId!, context.accountId, payload, context.role);
+    return;
+  }
+
+  await updateStudentSecuritySettings(context.supabaseUrl, context.accountId, payload);
+}
+
+async function logSecurityEvent(context: AccountContext, eventType: string, metadata: Record<string, unknown>) {
+  if (context.kind === "instructor") {
+    await logInstructorSecurityEvent(context.supabaseUrl, context.authUserId!, context.accountId, eventType, metadata, context.role);
+    return;
+  }
+
+  await logStudentSecurityEvent(context.supabaseUrl, context.accountId, eventType, metadata);
 }
 
 function getUnlockCookieAge() {
@@ -82,29 +243,29 @@ function getUnlockCookieAge() {
 
 export async function POST(request: Request) {
   try {
-    const context = await getStudentContext();
+    const context = await getAccountContext(request);
     if (!context) {
-      return NextResponse.json({ message: "Missing valid student session." }, { status: 401 });
+      return NextResponse.json({ message: "Missing valid authentication context." }, { status: 401 });
     }
 
     const payload = pinSchema.parse(await request.json());
-    const { supabaseUrl, student, security } = context;
+    const { security } = context;
 
     if (security.pin_enabled && !payload.currentPin) {
       return NextResponse.json({ message: "PIN-ul curent este necesar pentru schimbare." }, { status: 403 });
     }
 
     if (security.pin_enabled && payload.currentPin && !verifySecurityPin(payload.currentPin, security.pin_hash)) {
-      await updateStudentSecuritySettings(supabaseUrl, student.id, {
+      await updateSecuritySettings(context, {
         pin_failed_attempts: security.pin_failed_attempts + 1,
       });
 
-      await logStudentSecurityEvent(supabaseUrl, student.id, "pin_verify_failed", { action: "set_or_update" });
+      await logSecurityEvent(context, "pin_verify_failed", { action: "set_or_update" });
       return NextResponse.json({ message: "PIN invalid." }, { status: 403 });
     }
 
     const nextHash = hashSecurityPin(payload.pin);
-    await updateStudentSecuritySettings(supabaseUrl, student.id, {
+    await updateSecuritySettings(context, {
       pin_hash: nextHash,
       pin_enabled: true,
       pin_failed_attempts: 0,
@@ -114,12 +275,12 @@ export async function POST(request: Request) {
       require_pin_for_sensitive_changes: true,
     });
 
-    await logStudentSecurityEvent(supabaseUrl, student.id, security.pin_enabled ? "pin_updated" : "pin_enabled", {});
+    await logSecurityEvent(context, security.pin_enabled ? "pin_updated" : "pin_enabled", {});
 
     const response = NextResponse.json({ ok: true });
     response.cookies.set({
       name: "devatlas_student_security_unlock",
-      value: createSecurityUnlockToken({ studentId: student.id, ttlSeconds: getUnlockCookieAge() }),
+      value: createSecurityUnlockToken({ studentId: context.accountId, ttlSeconds: getUnlockCookieAge() }),
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -142,13 +303,13 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const context = await getStudentContext();
+    const context = await getAccountContext(request);
     if (!context) {
-      return NextResponse.json({ message: "Missing valid student session." }, { status: 401 });
+      return NextResponse.json({ message: "Missing valid authentication context." }, { status: 401 });
     }
 
     const payload = pinSchema.pick({ pin: true }).parse(await request.json());
-    const { supabaseUrl, student, security } = context;
+    const { security } = context;
 
     if (!security.pin_enabled || !security.pin_hash) {
       return NextResponse.json({ message: "PIN-ul nu este activ." }, { status: 409 });
@@ -162,28 +323,28 @@ export async function PATCH(request: Request) {
       const failedAttempts = security.pin_failed_attempts + 1;
       const lockUntil = failedAttempts >= 5 ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null;
 
-      await updateStudentSecuritySettings(supabaseUrl, student.id, {
+      await updateSecuritySettings(context, {
         pin_failed_attempts: failedAttempts,
         pin_locked_until: lockUntil,
       });
-      await logStudentSecurityEvent(supabaseUrl, student.id, "pin_verify_failed", { action: "unlock" });
+      await logSecurityEvent(context, "pin_verify_failed", { action: "unlock" });
 
       return NextResponse.json({ message: lockUntil ? "PIN-ul a fost blocat temporar." : "PIN invalid." }, { status: lockUntil ? 423 : 403 });
     }
 
-    await updateStudentSecuritySettings(supabaseUrl, student.id, {
+    await updateSecuritySettings(context, {
       pin_failed_attempts: 0,
       pin_locked_until: null,
       pin_last_verified_at: new Date().toISOString(),
       last_unlock_at: new Date().toISOString(),
     });
 
-    await logStudentSecurityEvent(supabaseUrl, student.id, "pin_verified", { action: "unlock" });
+    await logSecurityEvent(context, "pin_verified", { action: "unlock" });
 
     const response = NextResponse.json({ ok: true });
     response.cookies.set({
       name: "devatlas_student_security_unlock",
-      value: createSecurityUnlockToken({ studentId: student.id, ttlSeconds: getUnlockCookieAge() }),
+      value: createSecurityUnlockToken({ studentId: context.accountId, ttlSeconds: getUnlockCookieAge() }),
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -206,28 +367,28 @@ export async function PATCH(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const context = await getStudentContext();
+    const context = await getAccountContext(request);
     if (!context) {
-      return NextResponse.json({ message: "Missing valid student session." }, { status: 401 });
+      return NextResponse.json({ message: "Missing valid authentication context." }, { status: 401 });
     }
 
     const payload = pinSchema.pick({ currentPin: true }).parse(await request.json());
-    const { supabaseUrl, student, security } = context;
+    const { security } = context;
 
     if (!security.pin_enabled || !security.pin_hash) {
       return NextResponse.json({ message: "PIN-ul nu este activ." }, { status: 409 });
     }
 
     if (!payload.currentPin || !verifySecurityPin(payload.currentPin, security.pin_hash)) {
-      await updateStudentSecuritySettings(supabaseUrl, student.id, {
+      await updateSecuritySettings(context, {
         pin_failed_attempts: security.pin_failed_attempts + 1,
       });
 
-      await logStudentSecurityEvent(supabaseUrl, student.id, "pin_verify_failed", { action: "disable" });
+      await logSecurityEvent(context, "pin_verify_failed", { action: "disable" });
       return NextResponse.json({ message: "PIN invalid." }, { status: 403 });
     }
 
-    await updateStudentSecuritySettings(supabaseUrl, student.id, {
+    await updateSecuritySettings(context, {
       pin_hash: null,
       pin_enabled: false,
       pin_failed_attempts: 0,
@@ -236,7 +397,7 @@ export async function DELETE(request: Request) {
       last_unlock_at: null,
     });
 
-    await logStudentSecurityEvent(supabaseUrl, student.id, "pin_disabled", {});
+    await logSecurityEvent(context, "pin_disabled", {});
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof z.ZodError) {
