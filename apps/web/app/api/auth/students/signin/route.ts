@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { hashStudentPassword, verifyStudentPassword } from "@/lib/student-password";
-import {
-  createStudentLoginChallengeToken,
-  createStudentSessionToken,
-  getStudentLoginChallengeCookieName,
-  getStudentSessionCookieName,
-} from "@/lib/student-session";
 import { ensureStudentSecuritySettings, fetchStudentSecuritySettings } from "@/lib/student-security-store";
+import {
+  createLoginChallengeToken,
+  generateLoginEmailCode,
+  getStudentLoginChallengeCookieName,
+  hashLoginEmailCode,
+  maskEmail,
+  type TwoFactorMethod,
+} from "@/lib/login-2fa";
+import { generateLoginTwoFactorEmail } from "@/lib/email-templates";
 
 const signInSchema = z.object({
   email: z.string().email().max(320),
@@ -28,6 +31,10 @@ type StudentSecurityRow = {
   totp_enabled: boolean;
   totp_secret: string | null;
 };
+
+function getEmailCodeExpiryMinutes() {
+  return 10;
+}
 
 function getRequiredEnv(name: string) {
   const value = process.env[name];
@@ -84,6 +91,37 @@ async function verifyWithSupabaseAuth(input: { supabaseUrl: string; email: strin
   return true;
 }
 
+async function sendLoginCodeEmail(input: { email: string; fullName: string; code: string }) {
+  const apiKey = getRequiredEnv("RESEND_API_KEY");
+  const from = process.env.EMAIL_FROM ?? "support@devatlas.website";
+  const replyTo = process.env.EMAIL_REPLY_TO ?? from;
+  const html = generateLoginTwoFactorEmail({
+    fullName: input.fullName,
+    email: input.email,
+    verificationCode: input.code,
+    expiresInMinutes: getEmailCodeExpiryMinutes(),
+  });
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [input.email],
+      subject: "Cod autentificare DevAtlas",
+      reply_to: replyTo,
+      html,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Resend login 2FA email failed: ${await response.text()}`);
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const payload = signInSchema.parse(await request.json());
@@ -122,7 +160,7 @@ export async function POST(request: Request) {
     }
 
     const security = (await ensureStudentSecuritySettings(supabaseUrl, student.id)) ?? (await fetchStudentSecuritySettings(supabaseUrl, student.id));
-    const hasTwoFactor = Boolean((security as StudentSecurityRow | null)?.totp_enabled && (security as StudentSecurityRow | null)?.totp_secret);
+    const hasTotp = Boolean((security as StudentSecurityRow | null)?.totp_enabled && (security as StudentSecurityRow | null)?.totp_secret);
 
     // Opportunistic migration: if hash format is legacy/invalid, rewrite a strong hash after successful login.
     if (!student.password_hash || !student.password_hash.startsWith("scrypt:")) {
@@ -138,34 +176,40 @@ export async function POST(request: Request) {
       });
     }
 
-    if (hasTwoFactor) {
-      const challengeToken = createStudentLoginChallengeToken({ studentId: student.id, ttlSeconds: 60 * 10 });
-      const response = NextResponse.json({
-        ok: true,
-        requiresTwoFactor: true,
-        challengeToken,
-        student: {
-          id: student.id,
-          email: student.email,
-          fullName: student.full_name,
-        },
-      });
+    const methods: TwoFactorMethod[] = hasTotp ? ["totp", "email"] : ["email"];
+    const preferredMethod: TwoFactorMethod = hasTotp ? "totp" : "email";
+    let emailCodeHash: string | null = null;
+    let emailCodeExpiresAt: number | null = null;
 
-      response.cookies.set({
-        name: getStudentLoginChallengeCookieName(),
-        value: challengeToken,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 10,
+    if (preferredMethod === "email") {
+      const code = generateLoginEmailCode();
+      emailCodeHash = hashLoginEmailCode(student.email, code);
+      emailCodeExpiresAt = Date.now() + getEmailCodeExpiryMinutes() * 60 * 1000;
+      await sendLoginCodeEmail({
+        email: student.email,
+        fullName: student.full_name,
+        code,
       });
-
-      return response;
     }
+
+    const challengeToken = createLoginChallengeToken({
+      actorType: "student",
+      actorId: student.id,
+      email: student.email,
+      fullName: student.full_name,
+      rememberMe: payload.rememberMe,
+      methods,
+      emailCodeHash,
+      emailCodeExpiresAt,
+      ttlSeconds: 60 * 10,
+    });
 
     const response = NextResponse.json({
       ok: true,
+      requiresTwoFactor: true,
+      methods,
+      preferredMethod,
+      maskedEmail: maskEmail(student.email),
       student: {
         id: student.id,
         email: student.email,
@@ -174,18 +218,13 @@ export async function POST(request: Request) {
     });
 
     response.cookies.set({
-      name: getStudentSessionCookieName(),
-      value: createStudentSessionToken({
-        studentId: student.id,
-        email: student.email,
-        fullName: student.full_name,
-        ttlSeconds: payload.rememberMe ? 60 * 60 * 24 * 7 : 60 * 60 * 8,
-      }),
+      name: getStudentLoginChallengeCookieName(),
+      value: challengeToken,
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: payload.rememberMe ? 60 * 60 * 24 * 7 : 60 * 60 * 8,
+      maxAge: 60 * 10,
     });
 
     return response;

@@ -31,6 +31,13 @@ type StudentPasswordResetEmailContext = {
   resetUrl?: string;
 };
 
+type LoginTwoFactorEmailContext = {
+  fullName: string;
+  email: string;
+  verificationCode: string;
+  expiresInMinutes: number;
+};
+
 const LOGO_URL = "https://devatlas.website/logos/negru.fara.bg.png";
 const WEBSITE_URL = "https://devatlas.website";
 
@@ -526,6 +533,35 @@ export function generateStudentPasswordResetEmail(context: StudentPasswordResetE
   `;
 
   return generateBase("Resetare parolă - DevAtlas", content);
+}
+
+export function generateLoginTwoFactorEmail(context: LoginTwoFactorEmailContext): string {
+  const { fullName, email, verificationCode, expiresInMinutes } = context;
+
+  const content = `
+    ${buildHeader("Confirmare autentificare")}
+    <div class="body">
+      <p>Salut ${fullName},</p>
+      <p>Cineva încearcă să se autentifice în contul DevAtlas asociat adresei ${email}. Introdu codul de mai jos pentru a continua autentificarea.</p>
+
+      <div class="info-card">
+        <div class="info-row"><span class="label">Email</span><span class="value">${email}</span></div>
+        <div class="info-row"><span class="label">Tip verificare</span><span class="value"><span class="chip" style="${getStatusStyle("in_progress")}">2FA login</span></span></div>
+        <div class="info-row"><span class="label">Expiră</span><span class="value">în ${expiresInMinutes} minute</span></div>
+      </div>
+
+      <p class="section-title">Cod de autentificare</p>
+      <div class="verification-code">${verificationCode}</div>
+      <div class="verification-note">Dacă nu ai inițiat această autentificare, schimbă parola imediat și ignoră acest mesaj.</div>
+    </div>
+    <div class="footer">
+      <p><strong>DevAtlas Team</strong></p>
+      <p>support@devatlas.website • www.devatlas.website</p>
+      <p>© 2026 DevAtlas. Toate drepturile rezervate.</p>
+    </div>
+  `;
+
+  return generateBase("Cod autentificare - DevAtlas", content);
 }
 
 export function generateStudentPinResetEmail(context: {

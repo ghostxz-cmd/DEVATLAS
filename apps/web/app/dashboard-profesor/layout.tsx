@@ -25,6 +25,17 @@ export default function InstructorDashboardLayout({ children }: { children: Reac
   const [viewer, setViewer] = useState<Viewer>({ name: "Profesor", email: "-" });
 
   useEffect(() => {
+    const hasInstructorTwoFactorCookie = () => {
+      if (typeof document === "undefined") {
+        return false;
+      }
+
+      return document.cookie
+        .split(";")
+        .map((chunk) => chunk.trim())
+        .some((chunk) => chunk.startsWith("devatlas_instructor_2fa_verified="));
+    };
+
     const checkRole = async () => {
       try {
         const supabase = getSupabaseBrowserClient();
@@ -44,6 +55,11 @@ export default function InstructorDashboardLayout({ children }: { children: Reac
 
         if (role !== "INSTRUCTOR") {
           router.replace("/dashboard-elev");
+          return;
+        }
+
+        if (!hasInstructorTwoFactorCookie()) {
+          router.replace("/auth/signin?next=/dashboard-profesor");
           return;
         }
 

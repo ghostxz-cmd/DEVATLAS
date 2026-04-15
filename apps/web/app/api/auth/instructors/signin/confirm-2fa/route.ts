@@ -1,32 +1,29 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createStudentSessionToken, getStudentSessionCookieName } from "@/lib/student-session";
-import { markBackupCodeUsed, fetchUnusedBackupCodes, ensureStudentSecuritySettings, fetchStudentSecuritySettings, logStudentSecurityEvent, updateStudentSecuritySettings } from "@/lib/student-security-store";
 import { verifyBackupCode, verifyTotpCode } from "@/lib/account-security";
 import {
   createLoginChallengeToken,
   generateLoginEmailCode,
-  getStudentLoginChallengeCookieName,
+  getInstructorLoginChallengeCookieName,
   hashLoginEmailCode,
   maskEmail,
   verifyLoginChallengeToken,
   verifyLoginEmailCode,
   type TwoFactorMethod,
 } from "@/lib/login-2fa";
+import {
+  ensureInstructorSecuritySettings,
+  logInstructorSecurityEvent,
+  updateInstructorSecuritySettings,
+} from "@/lib/instructor-security-store";
 import { generateLoginTwoFactorEmail } from "@/lib/email-templates";
 
-type StudentAccountRow = {
-  id: string;
-  email: string;
-  full_name: string;
-  status: string;
-};
-
-type StudentSecurityRow = {
+type InstructorSecurityRow = {
   totp_enabled: boolean;
   totp_secret: string | null;
   totp_last_used_counter: number | null;
+  backup_codes: Array<{ code_hash: string; used_at: string | null }>;
 };
 
 const confirmSchema = z.object({
@@ -36,10 +33,6 @@ const confirmSchema = z.object({
   backupCode: z.string().trim().min(6).max(32).optional(),
 });
 
-function getEmailCodeExpiryMinutes() {
-  return 10;
-}
-
 function getRequiredEnv(name: string) {
   const value = process.env[name];
   if (!value) {
@@ -48,27 +41,8 @@ function getRequiredEnv(name: string) {
   return value;
 }
 
-function getSupabaseHeaders() {
-  const serviceRoleKey = getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");
-  return {
-    "Content-Type": "application/json",
-    apikey: serviceRoleKey,
-    Authorization: `Bearer ${serviceRoleKey}`,
-  };
-}
-
-async function fetchStudentAccount(supabaseUrl: string, studentId: string) {
-  const response = await fetch(
-    `${supabaseUrl}/rest/v1/student_accounts?select=id,email,full_name,status&id=eq.${encodeURIComponent(studentId)}&limit=1`,
-    { headers: getSupabaseHeaders() },
-  );
-
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
-
-  const rows = (await response.json()) as StudentAccountRow[];
-  return rows[0] ?? null;
+function getEmailCodeExpiryMinutes() {
+  return 10;
 }
 
 async function sendLoginCodeEmail(input: { email: string; fullName: string; code: string }) {
@@ -106,10 +80,10 @@ export async function POST(request: Request) {
   try {
     const supabaseUrl = getRequiredEnv("SUPABASE_URL");
     const cookieStore = await cookies();
-    const challengeToken = cookieStore.get(getStudentLoginChallengeCookieName())?.value ?? null;
+    const challengeToken = cookieStore.get(getInstructorLoginChallengeCookieName())?.value ?? null;
     const challenge = verifyLoginChallengeToken(challengeToken);
 
-    if (!challenge || challenge.actorType !== "student") {
+    if (!challenge || challenge.actorType !== "instructor" || !challenge.authUserId) {
       return NextResponse.json({ message: "Missing 2FA challenge." }, { status: 401 });
     }
 
@@ -118,34 +92,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: "Metoda selectată nu este disponibilă." }, { status: 400 });
     }
 
-    const student = await fetchStudentAccount(supabaseUrl, challenge.actorId);
+    const security = (await ensureInstructorSecuritySettings(
+      supabaseUrl,
+      challenge.authUserId,
+      challenge.actorId,
+      "INSTRUCTOR",
+    )) as InstructorSecurityRow;
 
-    if (!student || student.status !== "ACTIVE") {
-      return NextResponse.json({ message: "Student account not found." }, { status: 404 });
+    if (payload.method === "totp" && (!security.totp_enabled || !security.totp_secret)) {
+      return NextResponse.json({ message: "2FA nu este activată pentru acest cont." }, { status: 409 });
     }
-
-    const security = (await ensureStudentSecuritySettings(supabaseUrl, student.id)) ?? (await fetchStudentSecuritySettings(supabaseUrl, student.id));
-    const typedSecurity = security as StudentSecurityRow | null;
-
-    if (!typedSecurity?.totp_enabled || !typedSecurity.totp_secret) {
-      if (payload.method === "totp") {
-        return NextResponse.json({ message: "2FA nu este activată pentru acest cont." }, { status: 409 });
-      }
-    }
-
-    const totpSecret = typedSecurity?.totp_secret ?? null;
-    const totpLastUsedCounter = typedSecurity?.totp_last_used_counter ?? null;
 
     if (payload.intent === "send_email_code") {
       const code = generateLoginEmailCode();
-      const emailCodeHash = hashLoginEmailCode(student.email, code);
+      const emailCodeHash = hashLoginEmailCode(challenge.email, code);
       const emailCodeExpiresAt = Date.now() + getEmailCodeExpiryMinutes() * 60 * 1000;
       const nextChallengeToken = createLoginChallengeToken({
-        actorType: "student",
-        actorId: student.id,
-        email: student.email,
-        fullName: student.full_name,
-        rememberMe: challenge.rememberMe,
+        actorType: "instructor",
+        actorId: challenge.actorId,
+        authUserId: challenge.authUserId,
+        email: challenge.email,
+        fullName: challenge.fullName,
         methods: challenge.methods as TwoFactorMethod[],
         emailCodeHash,
         emailCodeExpiresAt,
@@ -153,18 +120,18 @@ export async function POST(request: Request) {
       });
 
       await sendLoginCodeEmail({
-        email: student.email,
-        fullName: student.full_name,
+        email: challenge.email,
+        fullName: challenge.fullName,
         code,
       });
 
       const response = NextResponse.json({
         ok: true,
-        message: `Am trimis codul la ${maskEmail(student.email)}.`,
+        message: `Am trimis codul la ${maskEmail(challenge.email)}.`,
       });
 
       response.cookies.set({
-        name: getStudentLoginChallengeCookieName(),
+        name: getInstructorLoginChallengeCookieName(),
         value: nextChallengeToken,
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
@@ -179,21 +146,35 @@ export async function POST(request: Request) {
     let verified = false;
     let usedBackupCode = false;
 
-    if (payload.method === "totp" && payload.code && totpSecret) {
+    if (payload.method === "totp" && payload.code && security.totp_secret) {
       const currentCounter = Math.floor(Date.now() / 1000 / 30);
-      if (totpLastUsedCounter !== null && totpLastUsedCounter === currentCounter) {
+      if (security.totp_last_used_counter !== null && security.totp_last_used_counter === currentCounter) {
         return NextResponse.json({ message: "Codul 2FA a fost deja folosit." }, { status: 403 });
       }
 
-      verified = verifyTotpCode({ secret: totpSecret, code: payload.code });
+      verified = verifyTotpCode({ secret: security.totp_secret, code: payload.code });
     }
 
     if (payload.method === "totp" && !verified && payload.backupCode) {
-      const unusedCodes = await fetchUnusedBackupCodes(supabaseUrl, student.id);
-      const matchingCode = unusedCodes.find((row) => verifyBackupCode(payload.backupCode ?? "", row.code_hash));
+      const matchingCode = security.backup_codes.find(
+        (row) => !row.used_at && verifyBackupCode(payload.backupCode ?? "", row.code_hash),
+      );
 
       if (matchingCode) {
-        await markBackupCodeUsed(supabaseUrl, student.id, matchingCode.code_hash);
+        const updatedCodes = security.backup_codes.map((row) =>
+          row.code_hash === matchingCode.code_hash ? { ...row, used_at: new Date().toISOString() } : row,
+        );
+
+        await updateInstructorSecuritySettings(
+          supabaseUrl,
+          challenge.authUserId,
+          challenge.actorId,
+          {
+            backup_codes: updatedCodes,
+          },
+          "INSTRUCTOR",
+        );
+
         verified = true;
         usedBackupCode = true;
       }
@@ -208,50 +189,50 @@ export async function POST(request: Request) {
         return NextResponse.json({ message: "Codul pe email a expirat. Cere unul nou." }, { status: 410 });
       }
 
-      verified = verifyLoginEmailCode(student.email, payload.code, challenge.emailCodeHash);
+      verified = verifyLoginEmailCode(challenge.email, payload.code, challenge.emailCodeHash);
     }
 
     if (!verified) {
-      await logStudentSecurityEvent(supabaseUrl, student.id, "totp_login_failed", {});
+      await logInstructorSecurityEvent(supabaseUrl, challenge.authUserId, challenge.actorId, "login_2fa_failed", {}, "INSTRUCTOR");
       return NextResponse.json({ message: "Codul 2FA este invalid." }, { status: 403 });
     }
 
     if (payload.method === "totp") {
-      await updateStudentSecuritySettings(supabaseUrl, student.id, {
-        totp_last_used_at: new Date().toISOString(),
-        totp_last_used_counter: Math.floor(Date.now() / 1000 / 30),
-      });
-      await logStudentSecurityEvent(supabaseUrl, student.id, usedBackupCode ? "totp_backup_code_used" : "totp_login_verified", {});
+      await updateInstructorSecuritySettings(
+        supabaseUrl,
+        challenge.authUserId,
+        challenge.actorId,
+        {
+          totp_last_used_at: new Date().toISOString(),
+          totp_last_used_counter: Math.floor(Date.now() / 1000 / 30),
+        },
+        "INSTRUCTOR",
+      );
+
+      await logInstructorSecurityEvent(
+        supabaseUrl,
+        challenge.authUserId,
+        challenge.actorId,
+        usedBackupCode ? "totp_backup_code_used" : "totp_login_verified",
+        {},
+        "INSTRUCTOR",
+      );
     } else {
-      await logStudentSecurityEvent(supabaseUrl, student.id, "email_2fa_login_verified", {});
+      await logInstructorSecurityEvent(supabaseUrl, challenge.authUserId, challenge.actorId, "email_2fa_login_verified", {}, "INSTRUCTOR");
     }
 
-    const response = NextResponse.json({
-      ok: true,
-      student: {
-        id: student.id,
-        email: student.email,
-        fullName: student.full_name,
-      },
-    });
-
+    const response = NextResponse.json({ ok: true });
     response.cookies.set({
-      name: getStudentSessionCookieName(),
-      value: createStudentSessionToken({
-        studentId: student.id,
-        email: student.email,
-        fullName: student.full_name,
-        ttlSeconds: challenge.rememberMe ? 60 * 60 * 24 * 7 : 60 * 60 * 8,
-      }),
+      name: "devatlas_instructor_2fa_verified",
+      value: "1",
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: 60 * 60 * 24 * 7,
     });
-
     response.cookies.set({
-      name: getStudentLoginChallengeCookieName(),
+      name: getInstructorLoginChallengeCookieName(),
       value: "",
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -267,7 +248,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { message: error instanceof Error ? error.message : "Failed to confirm 2FA." },
+      { message: error instanceof Error ? error.message : "Failed to confirm instructor 2FA." },
       { status: 500 },
     );
   }
