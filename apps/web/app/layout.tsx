@@ -4,6 +4,8 @@ import "./globals.css";
 import { ThemeProvider } from "./ThemeProvider";
 import AppShell from "./AppShell";
 
+export const dynamic = "force-dynamic";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -25,8 +27,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const runtimePublicEnv = {
-    SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? null,
-    SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? null,
+    SUPABASE_URL:
+      process.env.NEXT_PUBLIC_SUPABASE_URL ??
+      process.env.SUPABASE_URL ??
+      process.env.NEXT_PUBLIC_SUPABASE_PROJECT_URL ??
+      null,
+    SUPABASE_ANON_KEY:
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+      process.env.SUPABASE_ANON_KEY ??
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+      process.env.SUPABASE_PUBLISHABLE_KEY ??
+      null,
   };
 
   const runtimeEnvScript = `window.__DEVATLAS_PUBLIC_ENV__ = ${JSON.stringify(runtimePublicEnv).replace(/</g, "\\u003c")};`;
