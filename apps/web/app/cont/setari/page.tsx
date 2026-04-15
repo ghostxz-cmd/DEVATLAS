@@ -165,7 +165,7 @@ function SectionHeader({
 export default function AccountSettingsPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, setPreferences, updatePreference: updateGlobalPreference } = useTheme();
   const hasPublicSupabaseEnv = Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   const [activeSection, setActiveSection] = useState<SectionKey>("general");
   const [isLoading, setIsLoading] = useState(true);
@@ -262,7 +262,6 @@ export default function AccountSettingsPage() {
         preferences: mergedPreferences,
         passwordHint: payload.profile?.role === "ADMIN" ? "Autentificare admin" : "Schimbare parolă în siguranță",
       });
-      setTheme(mergedPreferences.theme);
       setIsAuthenticated(true);
       setIsLoading(false);
     };
@@ -271,7 +270,7 @@ export default function AccountSettingsPage() {
       setErrorMessage(error instanceof Error ? error.message : "Failed to load settings.");
       setIsLoading(false);
     });
-  }, [setTheme]);
+  }, []);
 
   const updatePreference = <K extends keyof Preferences>(key: K, value: Preferences[K]) => {
     setSettings((current) => ({
@@ -281,6 +280,8 @@ export default function AccountSettingsPage() {
         [key]: value,
       },
     }));
+
+    updateGlobalPreference(key, value);
 
     if (key === "theme") {
       setTheme(value as Preferences["theme"]);
@@ -355,6 +356,7 @@ export default function AccountSettingsPage() {
         throw new Error(text || "Nu am putut salva setările.");
       }
 
+      setPreferences(settings.preferences);
       setTheme(settings.preferences.theme);
       setSuccessMessage("Setările au fost salvate și sincronizate.");
     } catch (error) {

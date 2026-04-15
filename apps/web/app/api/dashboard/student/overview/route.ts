@@ -211,7 +211,7 @@ export async function GET() {
       userId
         ? fetchRows<ProgressRow>(supabaseUrl, `progress?select=id,user_id,course_id,lesson_id,completion_percent,status,last_activity_at,time_spent_seconds,created_at&user_id=eq.${encodeURIComponent(userId)}&order=last_activity_at.desc.nullslast&limit=500`)
         : Promise.resolve([] as ProgressRow[]),
-      fetchRows<CourseRow>(supabaseUrl, `courses?select=id,slug,title,level,category_id,thumbnail_url,estimated_mins,visibility,created_at&visibility=eq.PUBLISHED&order=created_at.desc&limit=200`),
+      fetchRows<CourseRow>(supabaseUrl, `courses?select=id,slug,title,level,category_id,thumbnail_url,estimated_mins,visibility,created_at&visibility=neq.DRAFT&order=created_at.desc&limit=200`),
       fetchRows<LessonRow>(supabaseUrl, `lessons?select=id,course_id,title,position,is_published,estimated_minutes&is_published=eq.true&order=course_id.asc,position.asc&limit=1000`),
       userId
         ? fetchRows<XpLedgerRow>(supabaseUrl, `xp_ledger?select=id,user_id,action_type,points,metadata_json,created_at&user_id=eq.${encodeURIComponent(userId)}&order=created_at.desc&limit=250`)

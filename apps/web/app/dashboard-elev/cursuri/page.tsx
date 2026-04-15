@@ -33,6 +33,41 @@ type DashboardOverview = {
   }>;
 };
 
+type PublicCourse = {
+  courseId: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  level: string;
+  language: string;
+  category: string | null;
+  thumbnailUrl: string | null;
+  estimatedMins: number | null;
+  createdAt: string;
+  instructorName: string;
+  isEnrolled: boolean;
+};
+
+type DashboardCourseCard = {
+  courseId: string;
+  title: string;
+  slug: string;
+  level: string;
+  category: string | null;
+  thumbnailUrl: string | null;
+  estimatedMins: number | null;
+  enrolledAt: string;
+  progressPercent: number;
+  completedLessons: number;
+  totalLessons: number;
+  lastActivityAt: string;
+  nextLessonTitle: string | null;
+  status: string;
+  isEnrolled: boolean;
+  instructorName?: string;
+  description?: string | null;
+};
+
 function formatDate(value: string) {
   return new Date(value).toLocaleDateString("ro-RO", {
     day: "2-digit",
@@ -48,25 +83,52 @@ function formatTime(value: string) {
   });
 }
 
+function formatHoursFromMinutes(totalMinutes: number | null) {
+  if (!totalMinutes || totalMinutes <= 0) {
+    return "0 ore";
+  }
+
+  const hours = totalMinutes / 60;
+  const rounded = Number.isInteger(hours) ? hours.toString() : hours.toFixed(1);
+  return `${rounded} ore`;
+}
+
 export default function StudentDashboardCoursesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<DashboardOverview | null>(null);
+  const [catalogCourses, setCatalogCourses] = useState<PublicCourse[]>([]);
   const [query, setQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [levelFilter, setLevelFilter] = useState("all");
+  const [submittingCourseId, setSubmittingCourseId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const response = await fetch("/api/dashboard/student/overview", { cache: "no-store" });
-        if (!response.ok) {
-          const payload = (await response.json().catch(() => null)) as { message?: string } | null;
+        const [overviewResponse, catalogResponse] = await Promise.all([
+          fetch("/api/dashboard/student/overview", { cache: "no-store" }),
+          fetch("/api/courses/public", { cache: "no-store" }),
+        ]);
+
+        if (!overviewResponse.ok) {
+          const payload = (await overviewResponse.json().catch(() => null)) as { message?: string } | null;
           throw new Error(payload?.message || "Nu am putut încărca cursurile.");
         }
 
-        const payload = (await response.json()) as DashboardOverview;
-        setData(payload);
+        if (!catalogResponse.ok) {
+          const payload = (await catalogResponse.json().catch(() => null)) as { message?: string } | null;
+          throw new Error(payload?.message || "Nu am putut încărca catalogul public.");
+        }
+
+        const [overviewPayload, catalogPayload] = await Promise.all([
+          overviewResponse.json() as Promise<DashboardOverview>,
+          catalogResponse.json() as Promise<{ courses?: PublicCourse[] }>,
+        ]);
+
+        setData(overviewPayload);
+        setCatalogCourses(catalogPayload.courses ?? []);
       } catch (fetchError) {
         setError(fetchError instanceof Error ? fetchError.message : "Nu am putut încărca cursurile.");
       } finally {
@@ -77,34 +139,107 @@ export default function StudentDashboardCoursesPage() {
     void load();
   }, []);
 
+  const handleEnroll = async (courseId: string) => {
+    setSubmittingCourseId(courseId);
+    setNotice(null);
+
+    try {
+      const response = await fetch("/api/courses/enroll", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ courseId }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as { message?: string; alreadyEnrolled?: boolean } | null;
+      if (!response.ok) {
+        throw new Error(payload?.message || "Nu am putut face enroll.");
+      }
+
+      const [overviewResponse, catalogResponse] = await Promise.all([
+        fetch("/api/dashboard/student/overview", { cache: "no-store" }),
+        fetch("/api/courses/public", { cache: "no-store" }),
+      ]);
+
+      if (overviewResponse.ok) {
+        const overviewPayload = (await overviewResponse.json()) as DashboardOverview;
+        setData(overviewPayload);
+      }
+
+      if (catalogResponse.ok) {
+        const catalogPayload = (await catalogResponse.json()) as { courses?: PublicCourse[] };
+        setCatalogCourses(catalogPayload.courses ?? []);
+      }
+
+      setNotice(payload?.alreadyEnrolled ? "Erai deja enrolled la acest curs." : "Enroll realizat cu succes.");
+    } catch (enrollError) {
+      setNotice(enrollError instanceof Error ? enrollError.message : "Nu am putut face enroll.");
+    } finally {
+      setSubmittingCourseId(null);
+    }
+  };
+
+  const mergedCourses = useMemo<DashboardCourseCard[]>(() => {
+    const enrolledCourses: DashboardCourseCard[] = (data?.courses ?? []).map((course) => ({
+      ...course,
+      isEnrolled: true,
+    }));
+
+    const enrolledSet = new Set(enrolledCourses.map((course) => course.courseId));
+    const publicCourses: DashboardCourseCard[] = catalogCourses
+      .filter((course) => !enrolledSet.has(course.courseId))
+      .map((course) => ({
+        courseId: course.courseId,
+        title: course.title,
+        slug: course.slug,
+        level: course.level,
+        category: course.category,
+        thumbnailUrl: course.thumbnailUrl,
+        estimatedMins: course.estimatedMins,
+        enrolledAt: course.createdAt,
+        progressPercent: 0,
+        completedLessons: 0,
+        totalLessons: 0,
+        lastActivityAt: course.createdAt,
+        nextLessonTitle: null,
+        status: "PUBLIC",
+        isEnrolled: false,
+        instructorName: course.instructorName,
+        description: course.description,
+      }));
+
+    return [...enrolledCourses, ...publicCourses];
+  }, [data, catalogCourses]);
+
   const categories = useMemo(() => {
     const values = new Set<string>();
-    for (const course of data?.courses ?? []) {
+    for (const course of mergedCourses) {
       if (course.category) {
         values.add(course.category);
       }
     }
     return ["all", ...Array.from(values).sort((a, b) => a.localeCompare(b))];
-  }, [data]);
+  }, [mergedCourses]);
 
   const levels = useMemo(() => {
     const values = new Set<string>();
-    for (const course of data?.courses ?? []) {
+    for (const course of mergedCourses) {
       if (course.level) {
         values.add(course.level);
       }
     }
     return ["all", ...Array.from(values).sort((a, b) => a.localeCompare(b))];
-  }, [data]);
+  }, [mergedCourses]);
 
   const filteredCourses = useMemo(() => {
-    return (data?.courses ?? []).filter((course) => {
+    return mergedCourses.filter((course) => {
       const matchesQuery = !query.trim() || [course.title, course.category, course.level, course.slug].filter(Boolean).some((value) => String(value).toLowerCase().includes(query.trim().toLowerCase()));
       const matchesCategory = categoryFilter === "all" || (course.category ?? "").toLowerCase() === categoryFilter.toLowerCase();
       const matchesLevel = levelFilter === "all" || course.level.toLowerCase() === levelFilter.toLowerCase();
       return matchesQuery && matchesCategory && matchesLevel;
     });
-  }, [data, query, categoryFilter, levelFilter]);
+  }, [mergedCourses, query, categoryFilter, levelFilter]);
 
   if (error) {
     return (
@@ -190,6 +325,12 @@ export default function StudentDashboardCoursesPage() {
         </div>
       </div>
 
+      {notice && (
+        <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-200">
+          {notice}
+        </div>
+      )}
+
       <div className="grid gap-3 xl:grid-cols-2">
         {filteredCourses.map((course) => (
           <article key={course.courseId} className="rounded-3xl border border-white/10 bg-[#030712] p-4 shadow-[0_8px_24px_rgba(15,23,42,0.03)] sm:p-5">
@@ -197,28 +338,57 @@ export default function StudentDashboardCoursesPage() {
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-300">{course.category || "General"}</p>
                 <h2 className="mt-1 text-lg font-bold text-white">{course.title}</h2>
-                <p className="mt-1 text-sm text-gray-300">Nivel: {course.level} • Status: {course.status}</p>
+                <p className="mt-1 text-sm text-gray-300">
+                  Nivel: {course.level} • Status: {course.isEnrolled ? course.status : "PUBLIC"}
+                </p>
+                {!course.isEnrolled && (
+                  <p className="mt-1 text-xs text-gray-400">Instructor: {course.instructorName ?? "Instructor"}</p>
+                )}
               </div>
               <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-semibold text-gray-200">
-                {course.progressPercent}%
+                {course.isEnrolled ? `${course.progressPercent}%` : "Public"}
               </div>
             </div>
 
-            <div className="mt-4 h-2 rounded-full bg-[#e2e8f0]">
-              <div className="h-full rounded-full bg-cyan-400" style={{ width: `${course.progressPercent}%` }} />
-            </div>
+            {course.isEnrolled ? (
+              <>
+                <div className="mt-4 h-2 rounded-full bg-[#e2e8f0]">
+                  <div className="h-full rounded-full bg-cyan-400" style={{ width: `${course.progressPercent}%` }} />
+                </div>
 
-            <div className="mt-4 grid gap-2 sm:grid-cols-3 text-xs">
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-2.5 py-2">Lecții: {course.completedLessons}/{course.totalLessons}</div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-2.5 py-2">Durată: {course.estimatedMins ?? "--"} min</div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 px-2.5 py-2">Înscris: {formatDate(course.enrolledAt)}</div>
-            </div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-3 text-xs">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-2.5 py-2">Lecții: {course.completedLessons}/{course.totalLessons}</div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-2.5 py-2">Durată: {formatHoursFromMinutes(course.estimatedMins)}</div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-2.5 py-2">Înscris: {formatDate(course.enrolledAt)}</div>
+                </div>
 
-            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-300">Următoarea lecție</p>
-              <p className="mt-1 text-sm font-semibold text-white">{course.nextLessonTitle || "Nu există încă o lecție următoare disponibilă."}</p>
-              <p className="mt-1 text-xs text-gray-300">Ultima activitate: {formatDate(course.lastActivityAt)} • {formatTime(course.lastActivityAt)}</p>
-            </div>
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-gray-300">Următoarea lecție</p>
+                  <p className="mt-1 text-sm font-semibold text-white">{course.nextLessonTitle || "Nu există încă o lecție următoare disponibilă."}</p>
+                  <p className="mt-1 text-xs text-gray-300">Ultima activitate: {formatDate(course.lastActivityAt)} • {formatTime(course.lastActivityAt)}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2 text-xs">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-2.5 py-2">Durată: {formatHoursFromMinutes(course.estimatedMins)}</div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 px-2.5 py-2">Publicat: {formatDate(course.enrolledAt)}</div>
+                </div>
+
+                <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-sm text-gray-300">{course.description?.trim() || "Curs public disponibil pentru enroll."}</p>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={submittingCourseId === course.courseId}
+                  onClick={() => handleEnroll(course.courseId)}
+                  className="mt-4 h-10 w-full rounded-xl border border-cyan-300/30 bg-cyan-500/20 px-4 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {submittingCourseId === course.courseId ? "Se procesează..." : "Enroll"}
+                </button>
+              </>
+            )}
           </article>
         ))}
       </div>
@@ -228,6 +398,8 @@ export default function StudentDashboardCoursesPage() {
           Nu există cursuri care să corespundă filtrelor curente sau nu ai încă enrolments.
         </div>
       )}
+
+      
     </section>
   );
 }

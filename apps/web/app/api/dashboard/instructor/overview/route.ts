@@ -22,6 +22,13 @@ type InstructorAccountRow = {
   created_at: string;
 };
 
+type AppUserRow = {
+  id: string;
+  supabase_auth_id: string | null;
+  email: string;
+  full_name: string;
+};
+
 type InstructorProfileRow = {
   instructor_account_id: string;
   phone: string | null;
@@ -171,9 +178,13 @@ function getSupabaseHeaders() {
   };
 }
 
-async function fetchRows<T>(supabaseUrl: string, path: string) {
+async function fetchRows<T>(supabaseUrl: string, path: string, init?: RequestInit) {
   const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
-    headers: getSupabaseHeaders(),
+    ...init,
+    headers: {
+      ...getSupabaseHeaders(),
+      ...(init?.headers ?? {}),
+    },
   });
 
   if (!response.ok) {
@@ -253,8 +264,48 @@ export async function GET(request: Request) {
       `instructor_profiles?select=instructor_account_id,phone,title,bio,expertise,can_manage_courses,can_manage_content,can_review_submissions,can_manage_students,can_view_support,is_supervisor&instructor_account_id=eq.${encodeURIComponent(account.id)}&limit=1`,
     );
 
+    let appUser =
+      (await fetchSingleRow<AppUserRow>(
+        supabaseUrl,
+        `users?select=id,supabase_auth_id,email,full_name&supabase_auth_id=eq.${encodeURIComponent(authedUser.id)}&limit=1`,
+      )) ??
+      (email
+        ? await fetchSingleRow<AppUserRow>(
+            supabaseUrl,
+            `users?select=id,supabase_auth_id,email,full_name&email=eq.${encodeURIComponent(email)}&limit=1`,
+          )
+        : null);
+
+    if (!appUser && email) {
+      try {
+        const createdRows = await fetchRows<AppUserRow>(supabaseUrl, "users", {
+          method: "POST",
+          headers: {
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({
+            supabase_auth_id: authedUser.id,
+            email,
+            full_name: account.full_name,
+            role: "INSTRUCTOR",
+            status: "ACTIVE",
+          }),
+        });
+        appUser = createdRows[0] ?? null;
+      } catch {
+        appUser = await fetchSingleRow<AppUserRow>(
+          supabaseUrl,
+          `users?select=id,supabase_auth_id,email,full_name&email=eq.${encodeURIComponent(email)}&limit=1`,
+        );
+      }
+    }
+
+    const coursesPath = appUser?.id
+      ? `courses?select=id,slug,title,level,category_id,thumbnail_url,estimated_mins,visibility,created_by,created_at&created_by=eq.${encodeURIComponent(appUser.id)}&order=created_at.desc&limit=250`
+      : "courses?select=id,slug,title,level,category_id,thumbnail_url,estimated_mins,visibility,created_by,created_at&id=is.null&limit=1";
+
     const [courses, lessons, enrollments, submissions, categories, activityRows] = await Promise.all([
-      fetchRows<CourseRow>(supabaseUrl, `courses?select=id,slug,title,level,category_id,thumbnail_url,estimated_mins,visibility,created_by,created_at&created_by=eq.${encodeURIComponent(account.id)}&order=created_at.desc&limit=250`),
+      fetchRows<CourseRow>(supabaseUrl, coursesPath),
       fetchRows<LessonRow>(supabaseUrl, "lessons?select=id,course_id,title,position,is_published,estimated_minutes&order=course_id.asc,position.asc&limit=2000"),
       fetchRows<EnrollmentRow>(supabaseUrl, "enrollments?select=id,user_id,course_id,status,enrolled_at&order=enrolled_at.desc&limit=4000"),
       fetchRows<SubmissionRow>(supabaseUrl, "submissions?select=id,lesson_id,score,verdict,created_at&score=not.is.null&order=created_at.desc&limit=4000"),

@@ -1,11 +1,6 @@
--- DevAtlas Supabase Bootstrap SQL
--- Run this script in Supabase SQL Editor.
 
 create extension if not exists pgcrypto;
 
--- =========================
--- ENUM TYPES
--- =========================
 do $$
 begin
   if not exists (select 1 from pg_type where typname = 'user_role') then
@@ -58,9 +53,6 @@ begin
 end
 $$;
 
--- =========================
--- HELPER FUNCTION
--- =========================
 create or replace function set_updated_at()
 returns trigger
 language plpgsql
@@ -71,9 +63,6 @@ begin
 end;
 $$;
 
--- =========================
--- CORE TABLES
--- =========================
 create table if not exists users (
   id uuid primary key default gen_random_uuid(),
   supabase_auth_id uuid unique references auth.users(id) on delete set null,
@@ -330,9 +319,7 @@ create table if not exists notifications (
   created_at timestamptz not null default now()
 );
 
--- =========================
--- INDEXES
--- =========================
+
 create index if not exists idx_users_role on users(role);
 create index if not exists idx_users_status on users(status);
 
@@ -379,9 +366,6 @@ create index if not exists idx_audit_logs_created_at on audit_logs(created_at);
 
 create index if not exists idx_notifications_user_created on notifications(user_id, created_at);
 
--- =========================
--- UPDATED_AT TRIGGERS
--- =========================
 drop trigger if exists trg_users_updated_at on users;
 create trigger trg_users_updated_at
 before update on users
@@ -442,9 +426,6 @@ create trigger trg_achievements_updated_at
 before update on achievements
 for each row execute function set_updated_at();
 
--- =========================
--- OPTIONAL STARTER VIEW
--- =========================
 create or replace view leaderboard as
 select
   u.id as user_id,
@@ -454,18 +435,3 @@ from users u
 left join xp_ledger x on x.user_id = u.id
 group by u.id, u.full_name
 order by total_xp desc;
-
--- =========================
--- OPTIONAL STARTER ROW LEVEL SECURITY
--- =========================
--- Enable RLS progressively when API endpoints are ready.
--- alter table users enable row level security;
--- alter table enrollments enable row level security;
--- alter table progress enable row level security;
--- alter table submissions enable row level security;
--- alter table notifications enable row level security;
-
--- Example policy pattern (adjust to your auth model):
--- create policy "users_can_read_own_profile" on users
--- for select
--- using (supabase_auth_id = auth.uid());
