@@ -155,9 +155,17 @@ function statusColor(value: boolean) {
 }
 
 async function apiFetch(input: string, init: RequestInit = {}) {
-  const supabase = getSupabaseBrowserClient();
-  const { data: sessionData } = await supabase.auth.getSession();
-  const accessToken = sessionData.session?.access_token;
+  let accessToken: string | undefined;
+
+  // In hosted environments NEXT_PUBLIC Supabase vars might be missing;
+  // fallback to cookie-based session handled by API routes.
+  try {
+    const supabase = getSupabaseBrowserClient();
+    const { data: sessionData } = await supabase.auth.getSession();
+    accessToken = sessionData.session?.access_token;
+  } catch {
+    accessToken = undefined;
+  }
 
   const headers = new Headers(init.headers ?? undefined);
   if (accessToken) {

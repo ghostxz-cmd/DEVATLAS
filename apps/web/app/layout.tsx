@@ -24,11 +24,19 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const runtimePublicEnv = {
+    SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL ?? null,
+    SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? null,
+  };
+
+  const runtimeEnvScript = `window.__DEVATLAS_PUBLIC_ENV__ = ${JSON.stringify(runtimePublicEnv).replace(/</g, "\\u003c")};`;
+
   return (
     <html lang="en">
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <script dangerouslySetInnerHTML={{ __html: runtimeEnvScript }} />
         <ThemeProvider>
           <AppShell>{children}</AppShell>
         </ThemeProvider>
