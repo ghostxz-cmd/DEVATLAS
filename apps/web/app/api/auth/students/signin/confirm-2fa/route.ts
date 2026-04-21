@@ -235,19 +235,20 @@ export async function POST(request: Request) {
       },
     });
 
+    const ttlSeconds = challenge.rememberMe ? 60 * 60 * 24 * 7 : 60 * 60 * 8;
     response.cookies.set({
       name: getStudentSessionCookieName(),
       value: createStudentSessionToken({
         studentId: student.id,
         email: student.email,
         fullName: student.full_name,
-        ttlSeconds: challenge.rememberMe ? 60 * 60 * 24 * 7 : 60 * 60 * 8,
+        ttlSeconds,
       }),
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
-      maxAge: 60 * 60 * 24 * 7,
+      maxAge: ttlSeconds,
     });
 
     response.cookies.set({
