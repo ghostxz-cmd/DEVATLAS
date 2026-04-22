@@ -14,7 +14,6 @@ type PublicCourse = {
   estimatedMins: number | null;
   createdAt: string;
   instructorName: string;
-  isEnrolled: boolean;
 };
 
 function formatDate(value: string) {
@@ -41,8 +40,6 @@ export default function CursuriPage() {
   const [courses, setCourses] = useState<PublicCourse[]>([]);
   const [query, setQuery] = useState("");
   const [levelFilter, setLevelFilter] = useState("all");
-  const [submittingCourseId, setSubmittingCourseId] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -81,37 +78,6 @@ export default function CursuriPage() {
     });
   }, [courses, query, levelFilter]);
 
-  const handleEnroll = async (courseId: string) => {
-    setSubmittingCourseId(courseId);
-    setNotice(null);
-
-    try {
-      const response = await fetch("/api/courses/enroll", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ courseId }),
-      });
-
-      const payload = (await response.json().catch(() => null)) as { message?: string; alreadyEnrolled?: boolean } | null;
-      if (!response.ok) {
-        throw new Error(payload?.message || "Nu am putut face enroll.");
-      }
-
-      setCourses((previous) => previous.map((course) => (
-        course.courseId === courseId
-          ? { ...course, isEnrolled: true }
-          : course
-      )));
-      setNotice(payload?.alreadyEnrolled ? "Erai deja enrolled la acest curs." : "Enroll realizat cu succes.");
-    } catch (enrollError) {
-      setNotice(enrollError instanceof Error ? enrollError.message : "Nu am putut face enroll.");
-    } finally {
-      setSubmittingCourseId(null);
-    }
-  };
-
   return (
     <main className="min-h-screen bg-black px-4 py-8 text-white sm:px-6 lg:px-10">
       <section className="mx-auto max-w-7xl space-y-4">
@@ -141,11 +107,6 @@ export default function CursuriPage() {
             </select>
           </div>
 
-          {notice && (
-            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-gray-200">
-              {notice}
-            </div>
-          )}
         </div>
 
         {error && (
@@ -170,26 +131,13 @@ export default function CursuriPage() {
                 </div>
 
                 <p className="mt-3 text-sm text-gray-300">
-                  {course.description?.trim() || "Acest curs este publicat și disponibil pentru enroll."}
+                  {course.description?.trim() || "Acest curs este publicat."}
                 </p>
 
                 <div className="mt-4 flex items-center justify-between text-xs text-gray-400">
                   <span>Instructor: {course.instructorName}</span>
                   <span>Creat: {formatDate(course.createdAt)}</span>
                 </div>
-
-                <button
-                  type="button"
-                  disabled={course.isEnrolled || submittingCourseId === course.courseId}
-                  onClick={() => handleEnroll(course.courseId)}
-                  className="mt-4 h-10 w-full rounded-xl border border-cyan-300/30 bg-cyan-500/20 px-4 text-sm font-semibold text-cyan-100 transition hover:bg-cyan-500/30 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {course.isEnrolled
-                    ? "Ești enrolled"
-                    : submittingCourseId === course.courseId
-                      ? "Se procesează..."
-                      : "Enroll"}
-                </button>
               </article>
             ))}
           </div>

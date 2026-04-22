@@ -6,6 +6,7 @@ type StudentAccountRow = {
   id: string;
   auth_user_id: string | null;
   email: string;
+  full_name: string | null;
   status: string;
 };
 
@@ -18,7 +19,6 @@ type AppUserRow = {
 type CourseRow = {
   id: string;
   visibility: string;
-  title: string;
 };
 
 type EnrollmentRow = {
@@ -59,12 +59,29 @@ async function fetchRows<T>(supabaseUrl: string, path: string) {
   return (await response.json()) as T[];
 }
 
-async function postRows<T>(supabaseUrl: string, path: string, body: unknown) {
+async function insertRows<T>(supabaseUrl: string, path: string, body: unknown) {
   const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
     method: "POST",
     headers: {
       ...getSupabaseHeaders(),
-      Prefer: "return=representation",
+      Prefer: "return=representation,resolution=ignore-duplicates",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return (await response.json()) as T[];
+}
+
+async function upsertRows<T>(supabaseUrl: string, path: string, body: unknown) {
+  const response = await fetch(`${supabaseUrl}/rest/v1/${path}`, {
+    method: "POST",
+    headers: {
+      ...getSupabaseHeaders(),
+      Prefer: "return=representation,resolution=merge-duplicates",
     },
     body: JSON.stringify(body),
   });
@@ -81,16 +98,21 @@ async function resolveStudentUser(supabaseUrl: string) {
   const token = cookieStore.get(getStudentSessionCookieName())?.value;
   const session = verifyStudentSessionToken(token);
 
-  if (!session) {
+  if (!session || !session.email) {
     return null;
   }
 
-  const studentRows = await fetchRows<StudentAccountRow>(
+  const studentById = await fetchRows<StudentAccountRow>(
     supabaseUrl,
-    `student_accounts?select=id,auth_user_id,email,status&id=eq.${encodeURIComponent(session.studentId)}&limit=1`,
+    `student_accounts?select=id,auth_user_id,email,full_name,status&id=eq.${encodeURIComponent(session.studentId)}&limit=1`,
   );
 
-  const student = studentRows[0] ?? null;
+  const studentByEmail = await fetchRows<StudentAccountRow>(
+    supabaseUrl,
+    `student_accounts?select=id,auth_user_id,email,full_name,status&email=eq.${encodeURIComponent(session.email.toLowerCase())}&limit=1`,
+  );
+
+  const student = studentById[0] ?? studentByEmail[0] ?? null;
   if (!student || student.status !== "ACTIVE") {
     return null;
   }
@@ -102,14 +124,29 @@ async function resolveStudentUser(supabaseUrl: string) {
       )
     : [];
 
-  const userByEmail = userByAuth.length > 0
-    ? []
-    : await fetchRows<AppUserRow>(
-        supabaseUrl,
-        `users?select=id,supabase_auth_id,email&email=eq.${encodeURIComponent(student.email.toLowerCase())}&limit=1`,
-      );
+  const userByEmail = await fetchRows<AppUserRow>(
+    supabaseUrl,
+    `users?select=id,supabase_auth_id,email&email=eq.${encodeURIComponent(student.email.toLowerCase())}&limit=1`,
+  );
 
-  return userByAuth[0] ?? userByEmail[0] ?? null;
+  const existingUser = userByAuth[0] ?? userByEmail[0] ?? null;
+  if (existingUser) {
+    return existingUser;
+  }
+
+  const createdUsers = await upsertRows<AppUserRow>(
+    supabaseUrl,
+    "users?select=id,supabase_auth_id,email&on_conflict=email",
+    {
+      email: student.email.toLowerCase(),
+      full_name: student.full_name ?? session.fullName,
+      supabase_auth_id: student.auth_user_id,
+      role: "STUDENT",
+      status: "ACTIVE",
+    },
+  );
+
+  return createdUsers[0] ?? null;
 }
 
 export async function POST(request: Request) {
@@ -130,11 +167,11 @@ export async function POST(request: Request) {
 
     const courseRows = await fetchRows<CourseRow>(
       supabaseUrl,
-      `courses?select=id,visibility,title&id=eq.${encodeURIComponent(courseId)}&limit=1`,
+      `courses?select=id,visibility&id=eq.${encodeURIComponent(courseId)}&visibility=neq.DRAFT&limit=1`,
     );
 
     const course = courseRows[0] ?? null;
-    if (!course || course.visibility === "DRAFT") {
+    if (!course) {
       return NextResponse.json({ message: "Cursul nu este disponibil pentru enroll." }, { status: 404 });
     }
 
@@ -151,7 +188,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const enrollmentRows = await postRows<EnrollmentRow>(supabaseUrl, "enrollments", {
+    const enrollmentRows = await insertRows<EnrollmentRow>(supabaseUrl, "enrollments", {
       user_id: studentUser.id,
       course_id: courseId,
       status: "ACTIVE",
@@ -168,9 +205,7 @@ export async function POST(request: Request) {
       enrollment,
     });
   } catch (error) {
-    return NextResponse.json(
-      { message: error instanceof Error ? error.message : "Failed to enroll in course." },
-      { status: 500 },
-    );
+    const message = error instanceof Error ? error.message : "Failed to enroll in course.";
+    return NextResponse.json({ message }, { status: 500 });
   }
 }
