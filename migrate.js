@@ -1,21 +1,17 @@
-const { createClient } = require("@supabase/supabase-js");
 const fs = require("fs");
 
-const supabaseUrl = "https://iamlprhjtsouxlwjzqjl.supabase.co";
-const supabaseServiceKey =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlhbWxwcmhqdHNvdXhsd2p6cWpsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MzgxMjU2MCwiZXhwIjoyMDg5Mzg4NTYwfQ.bg04iBHsmAkUbjrlW97vqEJaL6La9JmHVLdTEUsg8ik";
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: {
-    autoRefreshToken: false,
-    persistSession: false,
-  },
-});
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const sqlFile = process.argv[2] || "supabase/course_group_chat.sql";
 
 async function runMigration() {
   try {
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY environment variables.");
+    }
+
     console.log("📝 Reading SQL migration...");
-    const sqlContent = fs.readFileSync("supabase/support_chat_system.sql",  "utf-8");
+    const sqlContent = fs.readFileSync(sqlFile, "utf-8");
 
     // Use Supabase REST API to execute raw SQL
     const response = await fetch(`${supabaseUrl}/rest/v1/rpc/sql`, {
@@ -34,7 +30,7 @@ async function runMigration() {
       process.exit(1);
     }
 
-    console.log("✨ Migration executed successfully!");
+  console.log(`✨ Migration executed successfully from ${sqlFile}!`);
     const result = await response.json();
     console.log("Result:", result);
   } catch (error) {

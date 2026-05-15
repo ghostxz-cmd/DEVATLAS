@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ReplySupportTicketDto } from './dto/reply-support-ticket.dto';
 import { SupportTicketQueryDto } from './dto/support-ticket-query.dto';
 import { UpdateSupportTicketDto } from './dto/update-support-ticket.dto';
@@ -25,12 +33,18 @@ export class SupportController {
   }
 
   @Patch('tickets/:ticketId')
-  updateTicket(@Param('ticketId') ticketId: string, @Body() body: UpdateSupportTicketDto) {
+  updateTicket(
+    @Param('ticketId') ticketId: string,
+    @Body() body: UpdateSupportTicketDto,
+  ) {
     return this.supportService.updateTicket(ticketId, body);
   }
 
   @Post('tickets/:ticketId/reply')
-  replyToTicket(@Param('ticketId') ticketId: string, @Body() body: ReplySupportTicketDto) {
+  replyToTicket(
+    @Param('ticketId') ticketId: string,
+    @Body() body: ReplySupportTicketDto,
+  ) {
     return this.supportService.replyToTicket(ticketId, body);
   }
 }

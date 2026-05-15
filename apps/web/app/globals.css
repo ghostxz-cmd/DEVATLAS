@@ -7,6 +7,10 @@
   --foreground: #ffffff;
   --accent: #22d3ee;
   --accent-strong: #38bdf8;
+  --surface-main: #000000;
+  --surface-soft: #050505;
+  --surface-elev: #0b0b0b;
+  --border-main: rgba(34, 211, 238, 0.24);
 }
 
 html.light {
@@ -167,6 +171,60 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.bg-\[\#030712\],
+.bg-\[\#050814\],
+.bg-\[\#050816\],
+.bg-\[\#070b14\],
+.bg-\[\#0b1020\],
+.bg-\[\#0b1220\],
+.bg-\[\#0a1325\],
+.bg-\[\#0f1a31\],
+.bg-\[\#111a2d\],
+.bg-\[\#111b30\],
+.bg-\[\#040816\],
+.bg-\[\#050b1a\] {
+  background-color: var(--surface-main) !important;
+}
+
+.bg-white\/5,
+.bg-white\/10 {
+  background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+.border-white\/10,
+.border-white\/15,
+.border-white\/20 {
+  border-color: var(--border-main) !important;
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: var(--surface-soft) !important;
+  border: 1px solid var(--border-main) !important;
+  color: #ffffff !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none'%3E%3Cpath d='M6 8l4 4 4-4' stroke='%2322d3ee' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 1rem;
+  padding-right: 2.2rem !important;
+}
+
+select:hover {
+  border-color: rgba(56, 189, 248, 0.6) !important;
+}
+
+select:focus {
+  border-color: var(--accent-strong) !important;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2) !important;
+}
+
+select option {
+  background: #050505;
+  color: #ffffff;
 }
 
 html[data-reduced-motion="true"] *,

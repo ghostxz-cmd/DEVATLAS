@@ -24,6 +24,17 @@ export default function SignInPage() {
   const [twoFactorMessage, setTwoFactorMessage] = useState<string | null>(null);
   const [maskedEmail, setMaskedEmail] = useState<string>("");
 
+  const hasInstructorTwoFactorCookie = () => {
+    if (typeof document === "undefined") {
+      return false;
+    }
+
+    return document.cookie
+      .split(";")
+      .map((chunk) => chunk.trim())
+      .some((chunk) => chunk.startsWith("devatlas_instructor_2fa_verified="));
+  };
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       const nextParam = new URLSearchParams(window.location.search).get("next");
@@ -37,8 +48,22 @@ export default function SignInPage() {
     const checkSession = async () => {
       const supabase = getSupabaseBrowserClient();
       const { data } = await supabase.auth.getSession();
-      if (data.session) {
+
+      const session = data.session;
+      if (!session) {
+        return;
+      }
+
+      const role = String(session.user.user_metadata?.role ?? "").toUpperCase();
+
+      if (role === "ADMIN") {
+        router.replace("/dashboad-administrator");
+        return;
+      }
+
+      if (role === "INSTRUCTOR" && hasInstructorTwoFactorCookie()) {
         router.replace(nextPath);
+        return;
       }
     };
 

@@ -80,8 +80,25 @@ function formatHoursFromMinutes(totalMinutes: number | null) {
   const [catalogCourses, setCatalogCourses] = useState<PublicCourse[]>([]);
   const [enrolledQuery, setEnrolledQuery] = useState("");
   const [catalogQuery, setCatalogQuery] = useState("");
-    const [submittingCourseId, setSubmittingCourseId] = useState<string | null>(null);
-    const [notice, setNotice] = useState<string | null>(null);
+  const [submittingCourseId, setSubmittingCourseId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const refreshData = async () => {
+    const [overviewResponse, catalogResponse] = await Promise.all([
+      fetch("/api/dashboard/student/overview", { cache: "no-store" }),
+      fetch("/api/courses/public", { cache: "no-store" }),
+    ]);
+
+    if (overviewResponse.ok) {
+      const overviewPayload = (await overviewResponse.json()) as DashboardOverview;
+      setData(overviewPayload);
+    }
+
+    if (catalogResponse.ok) {
+      const catalogPayload = (await catalogResponse.json()) as { courses?: PublicCourse[] };
+      setCatalogCourses(catalogPayload.courses ?? []);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -119,6 +136,31 @@ function formatHoursFromMinutes(totalMinutes: number | null) {
     void load();
   }, []);
 
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      void refreshData();
+    }, 10000);
+
+    const onFocus = () => {
+      void refreshData();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void refreshData();
+      }
+    };
+
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
+
   const enrolledCourses = data?.courses ?? [];
   const enrolledSet = useMemo(() => new Set(enrolledCourses.map((course) => course.courseId)), [enrolledCourses]);
 
@@ -139,23 +181,6 @@ function formatHoursFromMinutes(totalMinutes: number | null) {
         .some((value) => String(value).toLowerCase().includes(needle));
     });
   }, [catalogCourses, catalogQuery]);
-
-  const refreshData = async () => {
-    const [overviewResponse, catalogResponse] = await Promise.all([
-      fetch("/api/dashboard/student/overview", { cache: "no-store" }),
-      fetch("/api/courses/public", { cache: "no-store" }),
-    ]);
-
-    if (overviewResponse.ok) {
-      const overviewPayload = (await overviewResponse.json()) as DashboardOverview;
-      setData(overviewPayload);
-    }
-
-    if (catalogResponse.ok) {
-      const catalogPayload = (await catalogResponse.json()) as { courses?: PublicCourse[] };
-      setCatalogCourses(catalogPayload.courses ?? []);
-    }
-  };
 
   const handleEnroll = async (courseId: string) => {
     setSubmittingCourseId(courseId);

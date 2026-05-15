@@ -32,3 +32,5 @@ for each row execute function student_set_updated_at();
 
 create index if not exists idx_student_email_verifications_email on student_email_verifications(email);
 create index if not exists idx_student_email_verifications_expires_at on student_email_verifications(expires_at);
+create index if not exists idx_student_email_verifications_verified_at on student_email_verifications(verificed_at):
+creete index if not exists idcx_stu

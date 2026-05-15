@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "@/app/ThemeProvider";
+import CourseGroupChatPanel from "@/components/course/CourseGroupChatPanel";
 import { getSupabaseBrowserClient } from "@/lib/supabase-browser";
 
 type Viewer = {
@@ -78,15 +79,12 @@ type ManagementPayload = {
   };
 };
 
-type SectionKey = "general" | "grup-chat" | "module" | "taskuri" | "program" | "catalog-camera-online";
+type SectionKey = "general" | "grup-chat" | "module";
 
 const sections: Array<{ key: SectionKey; label: string }> = [
   { key: "general", label: "General" },
   { key: "grup-chat", label: "Grup chat" },
   { key: "module", label: "Module" },
-  { key: "taskuri", label: "Taskuri" },
-  { key: "program", label: "Program" },
-  { key: "catalog-camera-online", label: "Catalog camera online" },
 ];
 
 function formatDate(value: string) {
@@ -121,8 +119,8 @@ function getAccentPalette(accent: "cyan" | "emerald" | "amber" | "rose" | "viole
 }
 
 export default function CourseManagementStandalonePage() {
-  const params = useParams<{ courseId: string }>();
-  const courseId = String(params?.courseId ?? "");
+  const params = useParams<Record<string, string | string[] | undefined>>();
+  const courseId = String(params?.courseId ?? params?.courseid ?? "");
   const { theme, preferences } = useTheme();
   const isLight = theme === "light";
   const accent = getAccentPalette(preferences.accentColor);
@@ -131,6 +129,7 @@ export default function CourseManagementStandalonePage() {
   const [error, setError] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState<SectionKey>("general");
   const [data, setData] = useState<ManagementPayload | null>(null);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [viewer, setViewer] = useState<Viewer>({
     fullName: "Profesor",
     email: "-",
@@ -146,6 +145,8 @@ export default function CourseManagementStandalonePage() {
         if (!accessToken) {
           throw new Error("Nu există sesiune activă de profesor.");
         }
+
+        setAccessToken(accessToken);
 
         const fullName = String(sessionData.session?.user.user_metadata?.full_name ?? "Profesor");
         const email = String(sessionData.session?.user.email ?? "-");
@@ -174,6 +175,9 @@ export default function CourseManagementStandalonePage() {
 
     if (courseId) {
       void load();
+    } else {
+      setLoading(false);
+      setError("Lipsește identificatorul cursului în URL.");
     }
   }, [courseId]);
 
@@ -225,14 +229,31 @@ export default function CourseManagementStandalonePage() {
 
   const surfaceClass = isLight
     ? "border-slate-200 bg-white text-slate-900 shadow-[0_10px_28px_rgba(15,23,42,0.08)]"
-    : "border-white/10 bg-[#0b1220] text-slate-100 shadow-[0_14px_32px_rgba(2,6,23,0.35)]";
+    : "border-cyan-400/20 bg-black text-slate-100 shadow-[0_16px_36px_rgba(34,211,238,0.12)]";
 
   const mutedTextClass = isLight ? "text-slate-500" : "text-slate-400";
   const headingTextClass = isLight ? "text-slate-900" : "text-slate-100";
   const viewerInitial = (viewer.fullName.trim().charAt(0) || "P").toUpperCase();
+  const chatParticipants = useMemo(
+    () => [
+      {
+        id: `prof-${viewer.email}`,
+        name: viewer.fullName,
+        detail: "profesor",
+        status: "online" as const,
+      },
+      ...(data?.recentStudents ?? []).slice(0, 10).map((student) => ({
+        id: student.userId,
+        name: student.name,
+        detail: `${normalizeStatus(student.status)} • ${student.completion}%`,
+        status: student.completion >= 65 ? ("online" as const) : student.completion >= 35 ? ("away" as const) : ("offline" as const),
+      })),
+    ],
+    [data?.recentStudents, viewer.email, viewer.fullName],
+  );
 
   return (
-    <main className={`relative min-h-screen ${isLight ? "bg-[#eaf0f8]" : "bg-[#040816]"} text-neutral-900`}>
+    <main className={`relative min-h-screen ${isLight ? "bg-[#eaf0f8]" : "bg-black"} text-neutral-900`}>
       <div className="pointer-events-none absolute inset-0">
         <div
           className="absolute -top-24 -left-20 h-80 w-80 rounded-full blur-3xl"
@@ -244,11 +265,11 @@ export default function CourseManagementStandalonePage() {
         />
       </div>
 
-      <section className={`relative grid min-h-screen w-full grid-cols-[260px_minmax(0,1fr)] ${isLight ? "bg-[#f7f9fc]/85" : "bg-[#050b1a]/90"}`}>
-        <aside className={`border-r p-5 ${isLight ? "border-slate-200 bg-white/75" : "border-white/10 bg-[#0a1325]/70"}`}>
-          <div className={`mb-5 rounded-2xl border p-3 ${isLight ? "border-slate-200 bg-white" : "border-white/10 bg-[#0f1a31]"}`}>
+      <section className={`relative grid min-h-screen w-full grid-cols-[260px_minmax(0,1fr)] ${isLight ? "bg-[#f7f9fc]/85" : "bg-black"}`}>
+        <aside className={`border-r p-5 ${isLight ? "border-slate-200 bg-white/75" : "border-cyan-400/20 bg-black"}`}>
+          <div className={`mb-5 rounded-2xl border p-3 ${isLight ? "border-slate-200 bg-white" : "border-cyan-400/20 bg-[#050505]"}`}>
             <div className="flex items-center gap-3">
-              <div className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border ${isLight ? "border-slate-200 bg-white" : "border-white/15 bg-[#0b1220]"}`}>
+              <div className={`flex h-12 w-12 items-center justify-center overflow-hidden rounded-xl border ${isLight ? "border-slate-200 bg-white" : "border-cyan-400/20 bg-black"}`}>
                 <Image
                   src={isLight ? "/logos/Negru.png" : "/logos/Alb.png"}
                   alt="DevAtlas"
@@ -287,7 +308,7 @@ export default function CourseManagementStandalonePage() {
                       ? "text-white"
                       : isLight
                         ? "border-slate-200 bg-white text-slate-600 hover:text-slate-900"
-                        : "border-white/10 bg-[#111b30] text-slate-300 hover:text-white"
+                        : "border-cyan-400/20 bg-[#050505] text-slate-300 hover:text-white"
                   }`}
                   style={
                     active
@@ -308,7 +329,7 @@ export default function CourseManagementStandalonePage() {
           <Link
             href="/dashboard-profesor/gestionare-cursuri"
             className={`mt-8 inline-flex rounded-xl border px-3.5 py-2 text-xs font-semibold ${
-              isLight ? "border-slate-300 bg-white text-slate-700" : "border-white/15 bg-[#0f1a31] text-slate-200"
+              isLight ? "border-slate-300 bg-white text-slate-700" : "border-cyan-400/20 bg-[#050505] text-slate-200"
             }`}
           >
             Inapoi la cursuri
@@ -317,7 +338,7 @@ export default function CourseManagementStandalonePage() {
 
         <div className="p-6 sm:p-8">
           {loading && (
-            <div className={`rounded-2xl border p-5 text-sm ${isLight ? "border-slate-200 bg-white text-slate-600" : "border-white/10 bg-[#0b1220] text-slate-300"}`}>
+            <div className={`rounded-2xl border p-5 text-sm ${isLight ? "border-slate-200 bg-white text-slate-600" : "border-cyan-400/20 bg-black text-slate-300"}`}>
               Se incarca dashboard-ul cursului...
             </div>
           )}
@@ -336,7 +357,7 @@ export default function CourseManagementStandalonePage() {
                     {data.course.level} • {data.course.visibility} • {formatHours(data.course.estimatedMins)}
                   </p>
                 </div>
-                <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${isLight ? "border-slate-300 bg-white text-slate-700" : "border-white/15 bg-[#111a2d] text-slate-200"}`}>
+                <div className={`rounded-full border px-3 py-1 text-xs font-semibold ${isLight ? "border-slate-300 bg-white text-slate-700" : "border-cyan-400/20 bg-[#050505] text-slate-200"}`}>
                   Updated {formatDate(data.course.updatedAt)}
                 </div>
               </header>
@@ -543,6 +564,69 @@ export default function CourseManagementStandalonePage() {
                     </div>
                   </article>
                 </>
+              ) : activeSection === "grup-chat" ? (
+                <CourseGroupChatPanel
+                  courseId={data.course.id}
+                  courseTitle={data.course.title}
+                  currentUserName={viewer.fullName}
+                  currentUserRole="profesor"
+                  participants={chatParticipants}
+                  isLight={isLight}
+                  accentBase={accent.base}
+                  accessToken={accessToken}
+                />
+              ) : activeSection === "module" ? (
+                <div className="space-y-4">
+                  <header className="flex items-center justify-between">
+                    <div>
+                      <h2 className={`text-xl font-bold ${headingTextClass}`}>Gestionare Module și Curs</h2>
+                      <p className={`mt-1 text-sm ${mutedTextClass}`}>
+                        Creează și administrează module cu curriculum complet, teste, taskuri și laborator
+                      </p>
+                    </div>
+                    <Link
+                      href={`/dashboard-profesor-management/${courseId}/modules`}
+                      className="inline-flex rounded-lg border px-6 py-3 font-semibold transition"
+                      style={{
+                        borderColor: accent.base,
+                        color: isLight ? accent.base : accent.base,
+                        background: isLight ? accent.soft : accent.soft,
+                      }}
+                    >
+                      Deschide Dashboard Module →
+                    </Link>
+                  </header>
+
+                  <article className={`rounded-2xl border p-6 ${surfaceClass}`}>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div>
+                        <h3 className="mb-3 font-semibold">📚 Ce poți face:</h3>
+                        <ul className={`space-y-2 text-sm ${mutedTextClass}`}>
+                          <li>✓ Creare module cu popup elegant</li>
+                          <li>✓ Gestionare curriculum (lecții, materiale, video)</li>
+                          <li>✓ Calendar cursuri cu evenimente (prelegeri, examene, lab)</li>
+                          <li>✓ Quiz Builder cu Multiple Choice, True/False, Cod</li>
+                          <li>✓ Task Manager pentru teme și proiecte</li>
+                          <li>✓ Laborator cu exerciții practice (Coding, Desen, Experimental)</li>
+                          <li>✓ Jurnal note elevi cu statistici</li>
+                        </ul>
+                      </div>
+
+                      <div>
+                        <h3 className="mb-3 font-semibold">🚀 Caracteristici principale:</h3>
+                        <ul className={`space-y-2 text-sm ${mutedTextClass}`}>
+                          <li>🎯 6 tab-uri: Curriculum, Calendar, Teste, Taskuri, Laborator, Note</li>
+                          <li>📊 Rapoarte detaliate pe student</li>
+                          <li>✍️ Editor bogat cu markdown/HTML</li>
+                          <li>📈 Tracking progres student</li>
+                          <li>🔒 Sistem de permisiuni</li>
+                          <li>💾 Salvare automată</li>
+                          <li>📱 Design responsive</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </article>
+                </div>
               ) : (
                 <div className={`rounded-2xl border border-dashed p-10 text-center ${isLight ? "border-slate-300 bg-white" : "border-white/20 bg-[#0b1220]"}`}>
                   <h3 className={`text-lg font-bold ${headingTextClass}`}>{sections.find((item) => item.key === activeSection)?.label}</h3>

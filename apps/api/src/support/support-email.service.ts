@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
 
@@ -28,17 +32,23 @@ export class SupportEmailService {
   }
 
   private getFromAddress() {
-    return this.configService.get<string>('EMAIL_FROM') ?? 'support@devatlas.website';
+    return (
+      this.configService.get<string>('EMAIL_FROM') ?? 'support@devatlas.website'
+    );
   }
 
   private getReplyToAddress() {
-    return this.configService.get<string>('EMAIL_REPLY_TO') ?? this.getFromAddress();
+    return (
+      this.configService.get<string>('EMAIL_REPLY_TO') ?? this.getFromAddress()
+    );
   }
 
   async sendTicketConfirmation(input: SendSupportConfirmationInput) {
     const from = this.getFromAddress();
     if (!this.resend) {
-      throw new InternalServerErrorException('RESEND_API_KEY is not configured.');
+      throw new InternalServerErrorException(
+        'RESEND_API_KEY is not configured.',
+      );
     }
 
     const { error } = await this.resend.emails.send({
@@ -58,15 +68,22 @@ export class SupportEmailService {
     });
 
     if (error) {
-      this.logger.error(`Failed to send support confirmation email for ${input.ticketPublicId}`, error);
-      throw new InternalServerErrorException('Support confirmation email could not be sent.');
+      this.logger.error(
+        `Failed to send support confirmation email for ${input.ticketPublicId}`,
+        error,
+      );
+      throw new InternalServerErrorException(
+        'Support confirmation email could not be sent.',
+      );
     }
   }
 
   async sendTicketReply(input: SendSupportReplyInput) {
     const from = this.getFromAddress();
     if (!this.resend) {
-      throw new InternalServerErrorException('RESEND_API_KEY is not configured.');
+      throw new InternalServerErrorException(
+        'RESEND_API_KEY is not configured.',
+      );
     }
 
     const { error } = await this.resend.emails.send({
@@ -89,8 +106,13 @@ export class SupportEmailService {
     });
 
     if (error) {
-      this.logger.error(`Failed to send support reply email for ${input.ticketPublicId}`, error);
-      throw new InternalServerErrorException('Support reply email could not be sent.');
+      this.logger.error(
+        `Failed to send support reply email for ${input.ticketPublicId}`,
+        error,
+      );
+      throw new InternalServerErrorException(
+        'Support reply email could not be sent.',
+      );
     }
   }
 }

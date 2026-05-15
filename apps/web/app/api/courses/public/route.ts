@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type CourseRow = {
   id: string;
   slug: string;
@@ -97,6 +100,12 @@ export async function GET() {
         createdAt: course.created_at,
         instructorName: creatorMap.get(course.created_by) ?? "Instructor",
       })),
+    }, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
     });
   } catch (error) {
     return NextResponse.json(

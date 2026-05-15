@@ -84,16 +84,23 @@ export class SupportService {
 
   private getSupabaseConfig() {
     const supabaseUrl = this.configService.get<string>('SUPABASE_URL');
-    const serviceRoleKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+    const serviceRoleKey = this.configService.get<string>(
+      'SUPABASE_SERVICE_ROLE_KEY',
+    );
 
     if (!supabaseUrl || !serviceRoleKey) {
-      throw new InternalServerErrorException('Supabase configuration is missing in API environment.');
+      throw new InternalServerErrorException(
+        'Supabase configuration is missing in API environment.',
+      );
     }
 
     return { supabaseUrl, serviceRoleKey };
   }
 
-  private async supabaseRequest<T>(path: string, init: RequestInit): Promise<T> {
+  private async supabaseRequest<T>(
+    path: string,
+    init: RequestInit,
+  ): Promise<T> {
     const { supabaseUrl, serviceRoleKey } = this.getSupabaseConfig();
     const response = await fetch(`${supabaseUrl}${path}`, {
       ...init,
@@ -122,28 +129,29 @@ export class SupportService {
   }
 
   async createTicket(payload: CreateSupportTicketDto) {
-    const rawData = await this.supabaseRequest<SupabaseTicketResponse[] | SupabaseTicketResponse>(
-      '/rest/v1/rpc/support_create_ticket_public',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          p_requester_email: payload.email,
-          p_requester_name: payload.fullName,
-          p_category_slug: payload.category,
-          p_subject: payload.subject,
-          p_description: payload.details,
-          p_metadata: {
-            priority: payload.priority,
-            source: payload.source ?? 'web_form',
-          },
-        }),
-      },
-    );
+    const rawData = await this.supabaseRequest<
+      SupabaseTicketResponse[] | SupabaseTicketResponse
+    >('/rest/v1/rpc/support_create_ticket_public', {
+      method: 'POST',
+      body: JSON.stringify({
+        p_requester_email: payload.email,
+        p_requester_name: payload.fullName,
+        p_category_slug: payload.category,
+        p_subject: payload.subject,
+        p_description: payload.details,
+        p_metadata: {
+          priority: payload.priority,
+          source: payload.source ?? 'web_form',
+        },
+      }),
+    });
 
     const result = Array.isArray(rawData) ? rawData[0] : rawData;
 
     if (!result?.ticket_id || !result?.ticket_public_id) {
-      throw new BadGatewayException('Supabase ticket RPC returned an invalid response payload.');
+      throw new BadGatewayException(
+        'Supabase ticket RPC returned an invalid response payload.',
+      );
     }
 
     await this.supportEmailService.sendTicketConfirmation({
@@ -163,25 +171,40 @@ export class SupportService {
 
   async listTickets(query: SupportTicketQueryDto) {
     const [tickets, categories] = await Promise.all([
-      this.supabaseRequest<SupportTicketRow[]>('/rest/v1/support_tickets?select=*&order=created_at.desc', {
-        method: 'GET',
-      }),
-      this.supabaseRequest<SupportCategoryRow[]>('/rest/v1/support_categories?select=*', {
-        method: 'GET',
-      }),
+      this.supabaseRequest<SupportTicketRow[]>(
+        '/rest/v1/support_tickets?select=*&order=created_at.desc',
+        {
+          method: 'GET',
+        },
+      ),
+      this.supabaseRequest<SupportCategoryRow[]>(
+        '/rest/v1/support_categories?select=*',
+        {
+          method: 'GET',
+        },
+      ),
     ]);
 
-    const categoryMap = new Map(categories.map((category) => [category.id, category]));
+    const categoryMap = new Map(
+      categories.map((category) => [category.id, category]),
+    );
     const search = this.normalizeString(query.search);
     const status = this.normalizeString(query.status);
     const priority = this.normalizeString(query.priority);
     const categoryFilter = this.normalizeString(query.category);
 
     const filteredTickets = tickets.filter((ticket) => {
-      const ticketCategory = ticket.category_id ? categoryMap.get(ticket.category_id) : null;
+      const ticketCategory = ticket.category_id
+        ? categoryMap.get(ticket.category_id)
+        : null;
       const matchesSearch =
         !search ||
-        [ticket.public_id, ticket.subject, ticket.requester_email, ticket.requester_name]
+        [
+          ticket.public_id,
+          ticket.subject,
+          ticket.requester_email,
+          ticket.requester_name,
+        ]
           .map((value) => this.normalizeString(value))
           .some((value) => value.includes(search));
       const matchesStatus = !status || ticket.status === status;
@@ -191,12 +214,16 @@ export class SupportService {
         ticketCategory?.slug === categoryFilter ||
         ticketCategory?.name?.toLowerCase().includes(categoryFilter);
 
-      return matchesSearch && matchesStatus && matchesPriority && matchesCategory;
+      return (
+        matchesSearch && matchesStatus && matchesPriority && matchesCategory
+      );
     });
 
     const items = filteredTickets.map((ticket) => ({
       ...ticket,
-      category: ticket.category_id ? categoryMap.get(ticket.category_id) ?? null : null,
+      category: ticket.category_id
+        ? (categoryMap.get(ticket.category_id) ?? null)
+        : null,
     }));
 
     return {
@@ -211,9 +238,12 @@ export class SupportService {
         `/rest/v1/support_tickets?select=*&id=eq.${encodeURIComponent(ticketId)}&limit=1`,
         { method: 'GET' },
       ),
-      this.supabaseRequest<SupportCategoryRow[]>('/rest/v1/support_categories?select=*', {
-        method: 'GET',
-      }),
+      this.supabaseRequest<SupportCategoryRow[]>(
+        '/rest/v1/support_categories?select=*',
+        {
+          method: 'GET',
+        },
+      ),
       this.supabaseRequest<SupportMessageRow[]>(
         `/rest/v1/support_messages?select=*&ticket_id=eq.${encodeURIComponent(ticketId)}&order=created_at.asc`,
         { method: 'GET' },
@@ -230,7 +260,7 @@ export class SupportService {
     }
 
     const category = ticket.category_id
-      ? categories.find((item) => item.id === ticket.category_id) ?? null
+      ? (categories.find((item) => item.id === ticket.category_id) ?? null)
       : null;
 
     return {
@@ -259,13 +289,16 @@ export class SupportService {
       return currentTicket;
     }
 
-    await this.supabaseRequest(`/rest/v1/support_tickets?id=eq.${encodeURIComponent(ticketId)}`, {
-      method: 'PATCH',
-      headers: {
-        Prefer: 'return=minimal',
+    await this.supabaseRequest(
+      `/rest/v1/support_tickets?id=eq.${encodeURIComponent(ticketId)}`,
+      {
+        method: 'PATCH',
+        headers: {
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify(patchPayload),
       },
-      body: JSON.stringify(patchPayload),
-    });
+    );
 
     return this.getTicket(ticketId);
   }
@@ -279,7 +312,9 @@ export class SupportService {
       body: JSON.stringify({
         ticket_id: ticket.id,
         sender_type: 'admin',
-        sender_email: this.configService.get<string>('EMAIL_FROM') ?? 'support@devatlas.website',
+        sender_email:
+          this.configService.get<string>('EMAIL_FROM') ??
+          'support@devatlas.website',
         message: payload.message,
         is_internal: false,
         metadata: {
